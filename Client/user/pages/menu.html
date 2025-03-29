@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Menú del Día</title>
+</head>
+<body class="bg-gray-100">
+    <div class="flex flex-col md:flex-row min-h-screen">
+
+
+        <main class="flex-1 p-6">
+
+            <div class="bg-green-200 p-4 justify-between items-center hidden md:flex">
+                <nav class="flex space-x-10">
+                    <a href="../pages/menu.html" class="font-semibold hover:bg-green-600 transition duration-[2000ms] p-2 rounded">Menú del día</a>
+                    <a href="../pages/pedido.html" class="font-semibold hover:bg-green-600 transition duration-[2000ms] p-2 rounded">Su pedido</a>
+                    
+                </nav>
+                <div class="flex items-center space-x-4">
+                    <span class="font-semibold">Total a pagar: 3.99</span>
+                    <button class="bg-red-500 text-white px-4 py-2 rounded">Cerrar sesión</button>
+                </div>
+            </div>
+
+
+            <div class="bg-green-200 p-4 flex justify-between items-center md:hidden">
+                <button id="menu-toggle" class="text-white bg-gray-800 px-4 py-2 rounded">☰</button>
+                <span class="font-semibold">Total a pagar: 3.99</span>
+            </div>
+
+            <nav id="mobile-menu" class="hidden flex-col bg-green-300 p-4 space-y-2 md:hidden">
+                <a href="../pages/menu.html" class="font-semibold hover:bg-green-600 transition duration-[2000ms] p-2 rounded">Menú del día</a>
+                <a href="../pages/pedido.html" class="font-semibold hover:bg-green-600 transition duration-[2000ms] p-2 rounded">Su pedido</a>
+                <button class="bg-red-500 text-white px-4 py-2 rounded">Cerrar sesión</button>
+            </nav>
+
+            <h1 class="text-2xl font-bold text-center my-6">Menú del día</h1>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 place-items-center">
+                <div class="bg-white p-4 shadow-md rounded-lg w-72 text-center">
+                    <img src="../../imgs/huevo.jpg" alt="Huevo estrellado" class="w-64 h-40 object-cover mx-auto rounded">
+                    <p class="mt-2 font-semibold">Huevo estrellado con plátano</p>
+                    <div class="flex justify-center mt-3 space-x-2">
+                        <a href="../pages/pedido.html"><button class="bg-green-400 text-white px-4 py-1 rounded">Reservar</button></a>
+                        <a href="../pages/info.html"><button class="bg-yellow-300 px-4 py-1 rounded">Información</button></a>
+                    </div>
+                    <p class="mt-2 font-semibold">3.99 USD</p>
+                </div>
+                <div class="bg-white p-4 shadow-md rounded-lg w-72 text-center">
+                    <img src="../../imgs/carne.jpeg" alt="Carne asada" class="w-64 h-40 object-cover mx-auto rounded">
+                    <p class="mt-2 font-semibold">Carne asada con arroz y ensalada</p>
+                    <div class="flex justify-center mt-3 space-x-2">
+                        <a href="../pages/pedido.html"><button class="bg-green-400 text-white px-4 py-1 rounded">Reservar</button></a>
+                        <a href="../pages/info.html"><button class="bg-yellow-300 px-4 py-1 rounded">Información</button></a>
+                    </div>
+                    <p class="mt-2 font-semibold">3.99 USD</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.getElementById("menu-toggle").addEventListener("click", function() {
+            document.getElementById("mobile-menu").classList.toggle("hidden");
+        });
+    </script>
+</body>
+</html>
