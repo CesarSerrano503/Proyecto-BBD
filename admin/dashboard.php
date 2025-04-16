@@ -104,52 +104,60 @@ $platos = $conn->query("SELECT * FROM platos ORDER BY activo DESC, nombre");
       </div>
     </section>
 
+   
     <!-- PLATOS -->
-    <section id="seccion-platos" class="seccion hidden bg-white p-6 rounded-xl shadow border border-gray-300">
-      <div class="flex justify-between items-center mb-4">
-        <h2 class="text-xl font-semibold flex items-center gap-2">🍽️ Gestión de Platos</h2>
-        <a href="agregar_plato.php" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">+ Agregar plato</a>
-      </div>
+<section id="seccion-platos" class="seccion hidden bg-white p-6 rounded-xl shadow border border-gray-300">
+  <div class="flex justify-between items-center mb-4">
+    <h2 class="text-xl font-semibold flex items-center gap-2">🍽️ Gestión de Platos</h2>
+    <a href="agregar_plato.php" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">+ Agregar plato</a>
+  </div>
 
-      <div class="overflow-x-auto border rounded">
-        <table class="w-full text-sm text-left">
-          <thead class="bg-gray-100 text-gray-700">
-            <tr>
-              <th class="p-2 border">Nombre</th>
-              <th class="p-2 border">Descripción</th>
-              <th class="p-2 border">Precio</th>
-              <th class="p-2 border">Estado</th>
-              <th class="p-2 border text-center">Acciones</th>
+  <div class="overflow-x-auto border rounded">
+    <table class="w-full text-sm text-left">
+      <thead class="bg-gray-100 text-gray-700">
+        <tr>
+          <th class="p-2 border">Imagen</th>
+          <th class="p-2 border">Nombre</th>
+          <th class="p-2 border">Descripción</th>
+          <th class="p-2 border">Precio</th>
+          <th class="p-2 border">Estado</th>
+          <th class="p-2 border text-center">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php if ($platos->num_rows > 0): ?>
+          <?php while ($plato = $platos->fetch_assoc()): ?>
+            <tr class="border-b hover:bg-gray-50">
+              <td class="p-2">
+                <?php if (!empty($plato['imagen'])): ?>
+                  <img src="data:image/jpeg;base64,<?= base64_encode($plato['imagen']) ?>" class="w-20 h-16 object-cover rounded" alt="Imagen">
+                <?php else: ?>
+                  <span class="text-gray-400 italic">Sin imagen</span>
+                <?php endif; ?>
+              </td>
+              <td class="p-2"><?= htmlspecialchars($plato['nombre']) ?></td>
+              <td class="p-2"><?= htmlspecialchars($plato['descripcion']) ?></td>
+              <td class="p-2">$<?= number_format($plato['precio'], 2) ?></td>
+              <td class="p-2"><?= $plato['activo'] ? '🟢 Activo' : '🔴 Inactivo' ?></td>
+              <td class="p-2 text-center space-x-2">
+                <a href="editar_plato.php?id=<?= $plato['id_plato'] ?>" class="text-blue-600 hover:underline">Editar</a>
+                <?php if ($plato['activo']): ?>
+                  <a href="deshabilitar_plato.php?id=<?= $plato['id_plato'] ?>&estado=0" class="text-yellow-600 hover:underline">Deshabilitar</a>
+                <?php else: ?>
+                  <a href="deshabilitar_plato.php?id=<?= $plato['id_plato'] ?>&estado=1" class="text-green-600 hover:underline">Habilitar</a>
+                <?php endif; ?>
+                <a href="eliminar_plato.php?id=<?= $plato['id_plato'] ?>" onclick="return confirm('¿Eliminar este plato?')" class="text-red-600 hover:underline">Eliminar</a>
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            <?php if ($platos->num_rows > 0): ?>
-              <?php while ($plato = $platos->fetch_assoc()): ?>
-                <tr class="border-b hover:bg-gray-50">
-                  <td class="p-2"><?= htmlspecialchars($plato['nombre']) ?></td>
-                  <td class="p-2"><?= htmlspecialchars($plato['descripcion']) ?></td>
-                  <td class="p-2">$<?= number_format($plato['precio'], 2) ?></td>
-                  <td class="p-2">
-                    <?= $plato['activo'] ? '🟢 Activo' : '🔴 Inactivo' ?>
-                  </td>
-                  <td class="p-2 text-center space-x-2">
-                    <a href="editar_plato.php?id=<?= $plato['id_plato'] ?>" class="text-blue-600 hover:underline">Editar</a>
-                    <?php if ($plato['activo']): ?>
-                      <a href="deshabilitar_plato.php?id=<?= $plato['id_plato'] ?>&estado=0" class="text-yellow-600 hover:underline">Deshabilitar</a>
-                    <?php else: ?>
-                      <a href="deshabilitar_plato.php?id=<?= $plato['id_plato'] ?>&estado=1" class="text-green-600 hover:underline">Habilitar</a>
-                    <?php endif; ?>
-                    <a href="eliminar_plato.php?id=<?= $plato['id_plato'] ?>" onclick="return confirm('¿Eliminar este plato?')" class="text-red-600 hover:underline">Eliminar</a>
-                  </td>
-                </tr>
-              <?php endwhile; ?>
-            <?php else: ?>
-              <tr><td colspan="5" class="p-4 text-center text-gray-500">No hay platos registrados.</td></tr>
-            <?php endif; ?>
-          </tbody>
-        </table>
-      </div>
-    </section>
+          <?php endwhile; ?>
+        <?php else: ?>
+          <tr><td colspan="6" class="p-4 text-center text-gray-500">No hay platos registrados.</td></tr>
+        <?php endif; ?>
+      </tbody>
+    </table>
+  </div>
+</section>
+
 
   </main>
 </div>
