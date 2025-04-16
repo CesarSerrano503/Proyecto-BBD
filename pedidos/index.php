@@ -10,7 +10,7 @@ if ($conn->connect_error) {
     die("Error de conexión: " . $conn->connect_error);
 }
 
-// ✅ Mostrar solo platos activos
+// Mostrar solo platos activos
 $platos = $conn->query("SELECT * FROM platos WHERE activo = 1");
 ?>
 
