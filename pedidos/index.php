@@ -1,7 +1,14 @@
 <?php
 session_start();
+
+//  Evitar que el navegador guarde la página en caché
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Pragma: no-cache");
+header("Expires: 0");
+
+// Verificar sesión activa
 if (!isset($_SESSION["Usuario"]["Carnet"])) {
-    header("Location: login.php");
+    header("Location: ../login/login.php?cerrado=1");
     exit();
 }
 
@@ -32,7 +39,8 @@ $platos = $conn->query("SELECT * FROM platos WHERE activo = 1");
         </div>
         <div class="flex items-center gap-4">
             <span class="text-gray-700 font-semibold">Total a pagar: $3.99</span>
-            <a href="logout.php" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md">Cerrar sesión</a>
+            <!--  Botón de cerrar sesión -->
+            <a href="../login/logout.php" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md">Cerrar sesión</a>
         </div>
     </header>
 
