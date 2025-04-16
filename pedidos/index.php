@@ -10,7 +10,8 @@ if ($conn->connect_error) {
     die("Error de conexión: " . $conn->connect_error);
 }
 
-$platos = $conn->query("SELECT * FROM platos");
+// ✅ Mostrar solo platos activos
+$platos = $conn->query("SELECT * FROM platos WHERE activo = 1");
 ?>
 
 <!DOCTYPE html>
@@ -43,10 +44,9 @@ $platos = $conn->query("SELECT * FROM platos");
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 place-items-center">
             <?php while($plato = $platos->fetch_assoc()): ?>
                 <div class="bg-white p-4 shadow-md rounded-lg w-72 text-center">
-                    <img src="imgs/<?= htmlspecialchars($plato['imagen']) ?>" alt="<?= htmlspecialchars($plato['nombre']) ?>" class="w-64 h-40 object-cover mx-auto rounded">
+                    <img src="data:image/jpeg;base64,<?= base64_encode($plato['imagen']) ?>" alt="<?= htmlspecialchars($plato['nombre']) ?>" class="w-64 h-40 object-cover mx-auto rounded">
                     <p class="mt-2 font-semibold"><?= htmlspecialchars($plato['nombre']) ?></p>
                     <div class="flex justify-center mt-3 space-x-2">
-                        <!-- usamos id en el enlace -->
                         <a href="pedido.php?id=<?= $plato['id_plato'] ?>">
                             <button class="bg-green-400 text-white px-4 py-1 rounded">Reservar</button>
                         </a>

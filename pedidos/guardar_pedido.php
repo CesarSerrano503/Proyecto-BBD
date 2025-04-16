@@ -11,18 +11,25 @@ if ($conn->connect_error) {
     die("Error de conexión: " . $conn->connect_error);
 }
 
-// Recoger datos del formulario
+// Validar y sanitizar entradas
 $carnet = $_SESSION["Usuario"]["Carnet"];
-$id_plato = $_POST['id_plato'];
-$total = floatval($_POST['total']);
-$tortillas = intval($_POST['tortillas']);
 
-// Complementos
-$bebida = $_POST['bebida'] ?? 'Sin bebida';
-$guarnicion = $_POST['guarnicion'] ?? 'Sin guarnición';
-$ensalada = $_POST['ensalada'] ?? 'Sin ensalada';
+$id_plato = filter_input(INPUT_POST, 'id_plato', FILTER_VALIDATE_INT);
+$total = filter_input(INPUT_POST, 'total', FILTER_VALIDATE_FLOAT);
+$tortillas = filter_input(INPUT_POST, 'tortillas', FILTER_VALIDATE_INT);
 
-// Obtener nombre del alumno
+$bebida = htmlspecialchars(trim($_POST['bebida'] ?? 'Sin bebida'));
+$guarnicion = htmlspecialchars(trim($_POST['guarnicion'] ?? 'Sin guarnición'));
+$ensalada = htmlspecialchars(trim($_POST['ensalada'] ?? 'Sin ensalada'));
+
+// Validaciones mínimas
+if (!$id_plato || !$total || $total <= 0) {
+    echo "<p class='text-center mt-10 text-red-500 font-bold'> Error: datos de pedido inválidos.</p>";
+    echo "<p class='text-center'><a href='index.php' class='text-blue-600 underline'>Volver al menú</a></p>";
+    exit();
+}
+
+//  Obtener nombre del alumno
 $stmtAlumno = $conn->prepare("SELECT nombre FROM alumnos WHERE carnet = ?");
 $stmtAlumno->bind_param("s", $carnet);
 $stmtAlumno->execute();
@@ -41,7 +48,7 @@ $nombre_plato = $plato['nombre'] ?? 'Plato desconocido';
 // Descripción del pedido
 $descripcion = "Plato: $nombre_plato | Bebida: $bebida | Guarnición: $guarnicion | Ensalada: $ensalada | Tortillas: $tortillas";
 
-// ID fijo de administrador (puede venir luego de sesión si tenés login de admins)
+//  ID del administrador (puede venir por sesión más adelante)
 $id_admin = 1;
 
 // Insertar pedido
@@ -49,9 +56,9 @@ $stmt = $conn->prepare("INSERT INTO pedidos (carnet_alumno, descripcion_pedido, 
 $stmt->bind_param("ssdi", $carnet, $descripcion, $total, $id_admin);
 
 if ($stmt->execute()) {
-    echo "<p class='text-center mt-10 font-bold text-green-600'>✅ Pedido registrado con éxito.</p>";
+    echo "<p class='text-center mt-10 font-bold text-green-600'> Pedido registrado con éxito.</p>";
     echo "<p class='text-center'><a href='index.php' class='text-blue-600 underline'>Volver al menú</a></p>";
 } else {
-    echo "<p class='text-center mt-10 text-red-500 font-bold'>❌ Error al guardar el pedido: " . $stmt->error . "</p>";
+    echo "<p class='text-center mt-10 text-red-500 font-bold'> Error al guardar el pedido: " . $stmt->error . "</p>";
 }
 ?>

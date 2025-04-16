@@ -10,13 +10,17 @@ if ($conn->connect_error) {
     die("Error de conexión: " . $conn->connect_error);
 }
 
-// Validar ID del plato
-if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
+// ✅ Validar y preparar ID del plato
+$platoId = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+if (!$platoId) {
     die("<p class='text-center text-red-500 mt-10 font-bold'>Error: ID de plato inválido.</p>");
 }
 
-$platoId = intval($_GET["id"]);
-$resultado = $conn->query("SELECT * FROM platos WHERE id_plato = $platoId");
+// ✅ Consulta preparada para evitar inyección
+$stmt = $conn->prepare("SELECT * FROM platos WHERE id_plato = ?");
+$stmt->bind_param("i", $platoId);
+$stmt->execute();
+$resultado = $stmt->get_result();
 
 if ($resultado->num_rows === 0) {
     die("<p class='text-center text-red-500 mt-10 font-bold'>Error: Plato no encontrado.</p>");
@@ -39,7 +43,11 @@ $precioBase = 1.50;
         
         <!-- Información del plato -->
         <div class="w-full md:w-1/2">
-            <img src="../imgs/<?= htmlspecialchars($plato['imagen']) ?>" alt="<?= htmlspecialchars($plato['nombre']) ?>" class="rounded-lg w-full h-48 object-cover">
+            <?php if (!empty($plato['imagen'])): ?>
+                <img src="data:image/jpeg;base64,<?= base64_encode($plato['imagen']) ?>" alt="<?= htmlspecialchars($plato['nombre']) ?>" class="rounded-lg w-full h-48 object-cover">
+            <?php else: ?>
+                <div class="bg-gray-200 w-full h-48 flex items-center justify-center rounded-lg text-gray-600">Sin imagen</div>
+            <?php endif; ?>
             <h2 class="text-xl font-semibold mt-4"><?= htmlspecialchars($plato['nombre']) ?></h2>
             <p class="text-gray-700 mt-2">$<?= number_format($precioBase, 2) ?> USD</p>
         </div>
@@ -57,7 +65,6 @@ $precioBase = 1.50;
                 $currentTipo = '';
                 while ($comp = $complementos->fetch_assoc()):
                     if ($comp['tipo'] === 'extra') {
-                        // Tortillas como select
                         echo '<div class="mt-4">';
                         echo '<label class="font-semibold block mb-1">Tortillas (0.10 c/u, máximo 5):</label>';
                         echo '<select name="tortillas" id="tortillas" class="p-2 border rounded w-28">';
@@ -67,14 +74,13 @@ $precioBase = 1.50;
                         echo '</select>';
                         echo '</div>';
                     } else {
-                        // Otros complementos
                         if ($currentTipo !== $comp['tipo']) {
-                            echo "<p class='font-semibold mt-4 capitalize'>" . $comp['tipo'] . "</p>";
+                            echo "<p class='font-semibold mt-4 capitalize'>" . htmlspecialchars($comp['tipo']) . "</p>";
                             $currentTipo = $comp['tipo'];
                         }
                         echo '<label class="block ml-2">';
-                        echo '<input type="radio" name="' . $comp['tipo'] . '" value="' . $comp['nombre'] . '" class="mr-2 complemento">';
-                        echo $comp['nombre'] . ' $' . number_format($comp['precio'], 2);
+                        echo '<input type="radio" name="' . htmlspecialchars($comp['tipo']) . '" value="' . htmlspecialchars($comp['nombre']) . '" class="mr-2 complemento">';
+                        echo htmlspecialchars($comp['nombre']) . ' $' . number_format($comp['precio'], 2);
                         echo '</label>';
                     }
                 endwhile;
