@@ -10,13 +10,13 @@ if ($conn->connect_error) {
     die("Error de conexión: " . $conn->connect_error);
 }
 
-// ✅ Validar y preparar ID del plato
+//  Validar y preparar ID del plato
 $platoId = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
 if (!$platoId) {
     die("<p class='text-center text-red-500 mt-10 font-bold'>Error: ID de plato inválido.</p>");
 }
 
-// ✅ Consulta preparada para evitar inyección
+//  Consulta preparada para evitar inyección
 $stmt = $conn->prepare("SELECT * FROM platos WHERE id_plato = ?");
 $stmt->bind_param("i", $platoId);
 $stmt->execute();
