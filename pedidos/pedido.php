@@ -10,7 +10,7 @@ if ($conn->connect_error) {
     die("Error de conexión: " . $conn->connect_error);
 }
 
-// Validar ID
+// Validar ID del plato
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     die("<p class='text-center text-red-500 mt-10 font-bold'>Error: ID de plato inválido.</p>");
 }
@@ -37,14 +37,14 @@ $precioBase = 1.50;
 
     <div class="max-w-4xl mx-auto bg-white shadow-md rounded-xl p-6 flex flex-col md:flex-row justify-between gap-6">
         
-        <!-- Info del plato -->
+        <!-- Información del plato -->
         <div class="w-full md:w-1/2">
             <img src="../imgs/<?= htmlspecialchars($plato['imagen']) ?>" alt="<?= htmlspecialchars($plato['nombre']) ?>" class="rounded-lg w-full h-48 object-cover">
             <h2 class="text-xl font-semibold mt-4"><?= htmlspecialchars($plato['nombre']) ?></h2>
             <p class="text-gray-700 mt-2">$<?= number_format($precioBase, 2) ?> USD</p>
         </div>
 
-        <!-- Formulario -->
+        <!-- Formulario de pedido -->
         <form action="guardar_pedido.php" method="POST" class="w-full md:w-1/2">
             <input type="hidden" name="id_plato" value="<?= $platoId ?>">
             <input type="hidden" name="precio_base" value="<?= $precioBase ?>">
@@ -57,11 +57,17 @@ $precioBase = 1.50;
                 $currentTipo = '';
                 while ($comp = $complementos->fetch_assoc()):
                     if ($comp['tipo'] === 'extra') {
+                        // Tortillas como select
                         echo '<div class="mt-4">';
-                        echo '<label class="font-semibold block">Tortillas (0.10 c/u, máximo 5):</label>';
-                        echo '<input type="number" name="tortillas" id="tortillas" min="0" max="5" value="0" step="1" class="mt-1 p-1 border rounded w-24">';
+                        echo '<label class="font-semibold block mb-1">Tortillas (0.10 c/u, máximo 5):</label>';
+                        echo '<select name="tortillas" id="tortillas" class="p-2 border rounded w-28">';
+                        for ($i = 0; $i <= 5; $i++) {
+                            echo '<option value="'.$i.'">'.$i.' tortilla'.($i == 1 ? '' : 's').'</option>';
+                        }
+                        echo '</select>';
                         echo '</div>';
                     } else {
+                        // Otros complementos
                         if ($currentTipo !== $comp['tipo']) {
                             echo "<p class='font-semibold mt-4 capitalize'>" . $comp['tipo'] . "</p>";
                             $currentTipo = $comp['tipo'];
@@ -75,7 +81,7 @@ $precioBase = 1.50;
                 ?>
             </div>
 
-            <!-- Total y botón -->
+            <!-- Total y botón de confirmación -->
             <div class="mt-6">
                 <p class="text-lg font-bold">Total: <span id="total">$<?= number_format($precioBase, 2) ?></span></p>
                 <input type="hidden" name="total" id="total-hidden" value="<?= $precioBase ?>">
@@ -89,25 +95,18 @@ $precioBase = 1.50;
         const totalSpan = document.getElementById("total");
         const totalHidden = document.getElementById("total-hidden");
         const inputs = document.querySelectorAll(".complemento");
-        const tortillaInput = document.getElementById("tortillas");
+        const tortillaSelect = document.getElementById("tortillas");
 
         function calcularTotal() {
             let extras = document.querySelectorAll(".complemento:checked").length * 0.25;
-            let tortillas = parseInt(tortillaInput.value) || 0;
-
-            // Limitar a máximo 5 tortillas en caso de que el navegador no lo respete
-            if (tortillas > 5) {
-                tortillas = 5;
-                tortillaInput.value = 5;
-            }
-
+            let tortillas = parseInt(tortillaSelect.value) || 0;
             let total = (base + extras + tortillas * 0.10).toFixed(2);
             totalSpan.textContent = `$${total}`;
             totalHidden.value = total;
         }
 
         inputs.forEach(input => input.addEventListener("change", calcularTotal));
-        tortillaInput.addEventListener("input", calcularTotal);
+        tortillaSelect.addEventListener("change", calcularTotal);
     </script>
 
 </body>
