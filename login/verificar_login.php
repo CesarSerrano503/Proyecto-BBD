@@ -25,6 +25,6 @@ if ($result->num_rows === 1) {
     ];
     header("Location: ../pedidos/index.php");
 } else {
-    echo "<p class='text-center text-red-500 mt-10'>❌ Carnet o contraseña incorrectos</p>";
+    echo "<p class='text-center text-red-500 mt-10'> Carnet o contraseña incorrectos</p>";
     echo "<p class='text-center'><a href='login.php' class='text-blue-600 underline'>Volver</a></p>";
 }
