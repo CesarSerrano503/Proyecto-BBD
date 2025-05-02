@@ -1,72 +1,75 @@
--- Crear base de datos
-CREATE DATABASE IF NOT EXISTS reservas_db;
-USE reservas_db;
+-- 1. Crear la base de datos y seleccionarla
+CREATE DATABASE IF NOT EXISTS `reservas_db`
+  DEFAULT CHARACTER SET utf8mb4
+  COLLATE utf8mb4_0900_ai_ci;
+USE `reservas_db`;
 
--- Tabla alumnos
-CREATE TABLE IF NOT EXISTS alumnos (
-    carnet VARCHAR(20) PRIMARY KEY,
-    nombre VARCHAR(100) NOT NULL,
-    grado VARCHAR(50),
-    seccion VARCHAR(10),
-    contrasena VARCHAR(100) NOT NULL
-);
+-- 2. Tabla administradores
+CREATE TABLE IF NOT EXISTS `administradores` (
+  `id_admin`       INT             NOT NULL AUTO_INCREMENT,
+  `carnet`         VARCHAR(50)     NOT NULL,
+  `contrasena`     VARCHAR(255)    NOT NULL,
+  `nombre_completo` VARCHAR(100)   DEFAULT NULL,
+  PRIMARY KEY (`id_admin`),
+  UNIQUE KEY `usuario` (`carnet`)
+) ENGINE=MyISAM
+  AUTO_INCREMENT=3
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_0900_ai_ci;
 
--- Tabla administradores
-CREATE TABLE IF NOT EXISTS administradores (
-    id_admin INT AUTO_INCREMENT PRIMARY KEY,
-    carnet VARCHAR(20) UNIQUE NOT NULL,
-    contrasena VARCHAR(100) NOT NULL
-);
+-- 3. Tabla alumnos
+CREATE TABLE IF NOT EXISTS `alumnos` (
+  `carnet`     VARCHAR(20)    NOT NULL,
+  `nombre`     VARCHAR(100)   NOT NULL,
+  `grado`      VARCHAR(50)    NOT NULL,
+  `seccion`    VARCHAR(10)    NOT NULL,
+  `contrasena` VARCHAR(255)   NOT NULL,
+  PRIMARY KEY (`carnet`)
+) ENGINE=MyISAM
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_0900_ai_ci;
 
--- Tabla platos
-CREATE TABLE IF NOT EXISTS platos (
-    id_plato INT AUTO_INCREMENT PRIMARY KEY,
-    nombre VARCHAR(100) NOT NULL,
-    descripcion TEXT,
-    precio DECIMAL(10,2) NOT NULL,
-    imagen LONGBLOB,
-    activo TINYINT(1) DEFAULT 1,
-    limite_disponible INT DEFAULT 0
-);
+-- 4. Tabla complementos (bebidas, ensaladas, extras…)
+CREATE TABLE IF NOT EXISTS `complementos` (
+  `id_complemento` INT               NOT NULL AUTO_INCREMENT,
+  `nombre`         VARCHAR(100)      NOT NULL,
+  `tipo`           ENUM('bebida','guarnicion','ensalada','extra') NOT NULL,
+  `precio`         DECIMAL(10,2)     NOT NULL DEFAULT '0.25',
+  PRIMARY KEY (`id_complemento`)
+) ENGINE=MyISAM
+  AUTO_INCREMENT=9
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_0900_ai_ci;
 
--- Tabla complementos
-CREATE TABLE IF NOT EXISTS complementos (
-    id_complemento INT AUTO_INCREMENT PRIMARY KEY,
-    nombre VARCHAR(100) NOT NULL,
-    tipo VARCHAR(50) NOT NULL, -- ejemplo: bebida, guarnicion, ensalada, extra
-    precio DECIMAL(10,2) NOT NULL
-);
+-- 5. Tabla platos
+CREATE TABLE IF NOT EXISTS `platos` (
+  `id_plato`         INT            NOT NULL AUTO_INCREMENT,
+  `nombre`           VARCHAR(100)   NOT NULL,
+  `descripcion`      TEXT,
+  `precio`           DECIMAL(10,2)  NOT NULL,
+  `imagen`           LONGBLOB,
+  `activo`           TINYINT(1)     NOT NULL DEFAULT '1',
+  `limite`           INT            DEFAULT '0',
+  `limite_disponible` INT           DEFAULT '0',
+  PRIMARY KEY (`id_plato`)
+) ENGINE=MyISAM
+  AUTO_INCREMENT=6
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_0900_ai_ci;
 
--- Tabla pedidos
-CREATE TABLE IF NOT EXISTS pedidos (
-    id_pedido INT AUTO_INCREMENT PRIMARY KEY,
-    carnet_alumno VARCHAR(20),
-    id_plato INT,
-    descripcion_pedido TEXT,
-    monto DECIMAL(10,2) NOT NULL,
-    id_admin INT,
-    fecha_reserva DATE NOT NULL,
-    FOREIGN KEY (carnet_alumno) REFERENCES alumnos(carnet) ON DELETE CASCADE,
-    FOREIGN KEY (id_plato) REFERENCES platos(id_plato) ON DELETE CASCADE,
-    FOREIGN KEY (id_admin) REFERENCES administradores(id_admin) ON DELETE CASCADE
-);
-
--- Insertar administrador de prueba
-INSERT INTO administradores (carnet, contrasena) VALUES ('admin1', 'admin123');
-
--- Insertar alumno de prueba
-INSERT INTO alumnos (carnet, nombre, grado, seccion, contrasena) 
-VALUES ('SG242683', 'Cesar Antonio Serrano Gutierrez', '12°', 'A', 'alumno123');
-
--- Insertar platos de prueba
-INSERT INTO platos (nombre, descripcion, precio, activo, limite_disponible) VALUES
-('Huevo estrellado con plátano', 'Plato típico con huevo, plátano y frijoles', 1.50, 1, 4),
-('Carne asada con arroz y ensalada', 'Deliciosa carne asada con guarnición', 1.50, 1, 4);
-
--- Insertar complementos de prueba
-INSERT INTO complementos (nombre, tipo, precio) VALUES
-('Coca-Cola', 'bebida', 0.25),
-('Pepsi', 'bebida', 0.25),
-('Papas fritas', 'guarnicion', 0.25),
-('Ensalada fresca', 'ensalada', 0.25),
-('Tortillas', 'extra', 0.10);
+-- 6. Tabla pedidos (referencia a alumnos, administradores y platos)
+CREATE TABLE IF NOT EXISTS `pedidos` (
+  `id_pedido`         INT            NOT NULL AUTO_INCREMENT,
+  `carnet_alumno`     VARCHAR(20)    NOT NULL,
+  `descripcion_pedido` TEXT          NOT NULL,
+  `monto`             DECIMAL(10,2)  NOT NULL,
+  `fecha_reserva`     DATE           NOT NULL DEFAULT (CURDATE()),
+  `id_admin`          INT            NOT NULL,
+  `id_plato`          INT            DEFAULT NULL,
+  PRIMARY KEY (`id_pedido`),
+  KEY `carnet_alumno` (`carnet_alumno`),
+  KEY `id_admin`      (`id_admin`)
+) ENGINE=MyISAM
+  AUTO_INCREMENT=11
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_0900_ai_ci;
