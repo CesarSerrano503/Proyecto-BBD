@@ -19,7 +19,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $nombre = htmlspecialchars(trim($_POST["nombre"]));
     $descripcion = htmlspecialchars(trim($_POST["descripcion"]));
     $precio = filter_input(INPUT_POST, "precio", FILTER_VALIDATE_FLOAT);
-    $limite = filter_input(INPUT_POST, "limite", FILTER_VALIDATE_INT);
+    $limite = filter_input(INPUT_POST, "limite_disponible", FILTER_VALIDATE_INT);
     $activo = isset($_POST["activo"]) ? 1 : 0;
 
     if (!$nombre || !$descripcion || !$precio || $precio <= 0 || $limite === false || $limite < 0) {
@@ -35,9 +35,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $error = "La imagen no debe superar los 2MB.";
             } else {
                 $imagenBinaria = file_get_contents($archivo["tmp_name"]);
-                $stmt = $conn->prepare("UPDATE platos SET nombre=?, descripcion=?, precio=?, limite=?, activo=?, imagen=? WHERE id_plato=?");
-                $stmt->bind_param("ssdibli", $nombre, $descripcion, $precio, $limite, $activo, $imagenBinaria, $id);
-                if ($stmt->send_long_data(5, $imagenBinaria) && $stmt->execute()) {
+                $stmt = $conn->prepare("UPDATE platos SET nombre=?, descripcion=?, precio=?, limite_disponible=?, activo=?, imagen=? WHERE id_plato=?");
+                $stmt->bind_param("ssdisbi", $nombre, $descripcion, $precio, $limite, $activo, $imagenBinaria, $id);
+                $stmt->send_long_data(5, $imagenBinaria);
+                if ($stmt->execute()) {
                     header("Location: dashboard.php?seccion=platos");
                     exit();
                 } else {
@@ -45,8 +46,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 }
             }
         } else {
-            $stmt = $conn->prepare("UPDATE platos SET nombre=?, descripcion=?, precio=?, limite=?, activo=? WHERE id_plato=?");
-            $stmt->bind_param("ssdi ii", $nombre, $descripcion, $precio, $limite, $activo, $id);
+            $stmt = $conn->prepare("UPDATE platos SET nombre=?, descripcion=?, precio=?, limite_disponible=?, activo=? WHERE id_plato=?");
+            $stmt->bind_param("ssdisi", $nombre, $descripcion, $precio, $limite, $activo, $id);
             if ($stmt->execute()) {
                 header("Location: dashboard.php?seccion=platos");
                 exit();
@@ -92,7 +93,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     <div>
       <label class="block text-sm font-medium text-gray-700">Límite disponible por día</label>
-      <input type="number" name="limite" value="<?= htmlspecialchars($plato['limite']) ?>" min="0" required class="mt-1 block w-full border border-gray-300 rounded p-2" />
+      <input type="number" name="limite_disponible" value="<?= htmlspecialchars($plato['limite_disponible']) ?>" min="0" required class="mt-1 block w-full border border-gray-300 rounded p-2" />
     </div>
 
     <div>

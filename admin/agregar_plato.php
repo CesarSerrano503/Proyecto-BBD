@@ -25,8 +25,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $imagenBinaria = file_get_contents($archivo["tmp_name"]);
 
             $stmt = $conn->prepare("INSERT INTO platos (nombre, descripcion, precio, activo, imagen, limite_disponible) VALUES (?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param("ssdibi", $nombre, $descripcion, $precio, $activo, $imagenBinaria, $limite);
-            if ($stmt->send_long_data(4, $imagenBinaria) && $stmt->execute()) {
+            $stmt->bind_param("ssdisi", $nombre, $descripcion, $precio, $activo, $imagenBinaria, $limite);
+            $stmt->send_long_data(4, $imagenBinaria);
+            
+            if ($stmt->execute()) {
                 header("Location: dashboard.php?seccion=platos");
                 exit();
             } else {
