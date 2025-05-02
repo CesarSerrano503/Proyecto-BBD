@@ -1,13 +1,13 @@
 <?php
 session_start();
 
-// 🔐 Evitar caché del navegador
+// 🔐 Evitar caché navegador
 header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
 header("Pragma: no-cache");
 header("Expires: 0");
 
 // Verificar sesión de administrador
-if (!isset($_SESSION["Admin"]["id_admin"])) {
+if (!isset($_SESSION["Usuario"]["Rol"]) || $_SESSION["Usuario"]["Rol"] !== 'admin') {
     header("Location: ../login/login.php?cerrado=1");
     exit();
 }

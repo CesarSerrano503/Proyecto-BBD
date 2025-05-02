@@ -8,10 +8,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $nombre = htmlspecialchars(trim($_POST["nombre"]));
     $descripcion = htmlspecialchars(trim($_POST["descripcion"]));
     $precio = filter_input(INPUT_POST, "precio", FILTER_VALIDATE_FLOAT);
+    $limite = filter_input(INPUT_POST, "limite_disponible", FILTER_VALIDATE_INT);
     $activo = isset($_POST["activo"]) ? 1 : 0;
 
-    if (!$nombre || !$descripcion || !$precio || $precio <= 0 || !isset($_FILES["imagen"])) {
-        $error = "Por favor, completa todos los campos y sube una imagen válida.";
+    if (!$nombre || !$descripcion || !$precio || $precio <= 0 || $limite < 0 || !isset($_FILES["imagen"])) {
+        $error = "Por favor, completa todos los campos correctamente y sube una imagen válida.";
     } else {
         $archivo = $_FILES["imagen"];
         $permitidos = ["image/jpeg", "image/png", "image/webp"];
@@ -23,8 +24,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         } else {
             $imagenBinaria = file_get_contents($archivo["tmp_name"]);
 
-            $stmt = $conn->prepare("INSERT INTO platos (nombre, descripcion, precio, activo, imagen) VALUES (?, ?, ?, ?, ?)");
-            $stmt->bind_param("ssdib", $nombre, $descripcion, $precio, $activo, $imagenBinaria);
+            $stmt = $conn->prepare("INSERT INTO platos (nombre, descripcion, precio, activo, imagen, limite_disponible) VALUES (?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param("ssdibi", $nombre, $descripcion, $precio, $activo, $imagenBinaria, $limite);
             if ($stmt->send_long_data(4, $imagenBinaria) && $stmt->execute()) {
                 header("Location: dashboard.php?seccion=platos");
                 exit();
@@ -66,6 +67,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <div>
       <label class="block text-sm font-medium text-gray-700">Precio ($)</label>
       <input type="number" step="0.01" min="0" name="precio" required class="mt-1 block w-full border border-gray-300 rounded p-2" />
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-gray-700">Límite disponible</label>
+      <input type="number" name="limite_disponible" min="0" required class="mt-1 block w-full border border-gray-300 rounded p-2" />
     </div>
 
     <div>
