@@ -1,25 +1,26 @@
 <?php
 session_start();
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Pragma: no-cache");
+header("Expires: 0");
 
-if (!isset($_SESSION["Usuario"]["Carnet"])) {
-    header("Location: login.php");
+// Verificar sesión de alumno
+if (!isset($_SESSION['Usuario']['Carnet']) || $_SESSION['Usuario']['Rol'] !== 'alumno') {
+    header('Location: ../login/login.php?cerrado=1');
     exit();
 }
 
-$conn = new mysqli("localhost", "root", "", "reservas_db");
+// Conexión a DB
+$conn = new mysqli('localhost', 'root', '', 'reservas_db');
 if ($conn->connect_error) {
     die("Error de conexión: " . $conn->connect_error);
 }
 
-// Validar y sanitizar entradas
-$carnet = $_SESSION["Usuario"]["Carnet"];
-$id_plato = filter_input(INPUT_POST, 'id_plato', FILTER_VALIDATE_INT);
-$total = filter_input(INPUT_POST, 'total', FILTER_VALIDATE_FLOAT);
+// Recoger y validar POST
+$carnet    = $_SESSION['Usuario']['Carnet'];
+$id_plato  = filter_input(INPUT_POST, 'id_plato', FILTER_VALIDATE_INT);
+$total     = filter_input(INPUT_POST, 'total', FILTER_VALIDATE_FLOAT);
 $tortillas = filter_input(INPUT_POST, 'tortillas', FILTER_VALIDATE_INT);
-
-$bebida = htmlspecialchars(trim($_POST['bebida'] ?? 'Sin bebida'));
-$guarnicion = htmlspecialchars(trim($_POST['guarnicion'] ?? 'Sin guarnición'));
-$ensalada = htmlspecialchars(trim($_POST['ensalada'] ?? 'Sin ensalada'));
 
 if (!$id_plato || !$total || $total <= 0) {
     echo "<p class='text-center mt-10 text-red-500 font-bold'>❌ Error: datos de pedido inválidos.</p>";
@@ -27,56 +28,75 @@ if (!$id_plato || !$total || $total <= 0) {
     exit();
 }
 
-// ✅ Obtener límite y verificar disponibilidad
-$stmtPlato = $conn->prepare("SELECT nombre, limite FROM platos WHERE id_plato = ?");
-$stmtPlato->bind_param("i", $id_plato);
-$stmtPlato->execute();
-$resultPlato = $stmtPlato->get_result();
-$plato = $resultPlato->fetch_assoc();
-
-if (!$plato) {
-    echo "<p class='text-center mt-10 text-red-500 font-bold'>❌ Error: plato no encontrado.</p>";
-    exit();
+// Obtener datos del plato y límite
+$stmt = $conn->prepare("SELECT nombre, limite_disponible FROM platos WHERE id_plato = ?");
+$stmt->bind_param('i', $id_plato);
+$stmt->execute();
+$res = $stmt->get_result();
+if ($res->num_rows === 0) {
+    die("<p class='text-center text-red-500 mt-10 font-bold'>❌ Plato no encontrado.</p>");
 }
-
+$plato = $res->fetch_assoc();
+$stmt->close();
 $nombre_plato = $plato['nombre'];
-$limite = $plato['limite'];
+$limite       = (int)$plato['limite_disponible'];
 
-// Contar pedidos del día
-$stmtCount = $conn->prepare("SELECT COUNT(*) AS total FROM pedidos WHERE id_plato = ? AND fecha_reserva = CURDATE()");
-$stmtCount->bind_param("i", $id_plato);
-$stmtCount->execute();
-$countResult = $stmtCount->get_result();
-$pedidosHoy = $countResult->fetch_assoc()['total'];
-
-if ($limite > 0 && $pedidosHoy >= $limite) {
-    echo "<p class='text-center mt-10 text-red-500 font-bold'>❌ Límite de pedidos alcanzado para el plato <strong>$nombre_plato</strong> hoy.</p>";
+// Contar pedidos hoy para disponibilidad
+$stmtCnt = $conn->prepare("SELECT COUNT(*) AS total FROM pedidos WHERE id_plato = ? AND fecha_reserva = CURDATE()");
+$stmtCnt->bind_param('i', $id_plato);
+$stmtCnt->execute();
+$resCnt = $stmtCnt->get_result();
+$pedHoy = $resCnt->fetch_assoc()['total'];
+$stmtCnt->close();
+if ($limite > 0 && $pedHoy >= $limite) {
+    echo "<p class='text-center mt-10 text-red-500 font-bold'>❌ Límite de pedidos alcanzado para $nombre_plato hoy.</p>";
     echo "<p class='text-center'><a href='index.php' class='text-blue-600 underline'>Volver al menú</a></p>";
     exit();
 }
 
-// Obtener nombre del alumno
-$stmtAlumno = $conn->prepare("SELECT nombre FROM alumnos WHERE carnet = ?");
-$stmtAlumno->bind_param("s", $carnet);
-$stmtAlumno->execute();
-$resultAlumno = $stmtAlumno->get_result();
-$alumno = $resultAlumno->fetch_assoc();
-$nombre_alumno = $alumno['nombre'] ?? 'Alumno desconocido';
+// Construir descripción con complementos dinámicos
+$items = ["Plato: $nombre_plato", "Tortillas: $tortillas"];
+foreach ($_POST as $key => $val) {
+    // complementos tipo radio: comp_<tipo>
+    if (strpos($key, 'comp_') === 0 && intval($val) > 0) {
+        $compId = intval($val);
+        $q = $conn->prepare("SELECT tipo, nombre FROM complementos WHERE id_complemento = ?");
+        $q->bind_param('i', $compId);
+        $q->execute();
+        $r = $q->get_result();
+        if ($row = $r->fetch_assoc()) {
+            $tipo = ucfirst($row['tipo']);
+            $items[] = "$tipo: {$row['nombre']}";
+        }
+        $q->close();
+    }
+    // extras tipo select: extra_<id>
+    if (preg_match('/^extra_(\d+)$/', $key, $m) && intval($val) > 0) {
+        $compId = intval($m[1]);
+        $cantidad = intval($val);
+        $q = $conn->prepare("SELECT nombre FROM complementos WHERE id_complemento = ?");
+        $q->bind_param('i', $compId);
+        $q->execute();
+        $r = $q->get_result();
+        if ($row = $r->fetch_assoc()) {
+            $items[] = "$cantidad x {$row['nombre']}";
+        }
+        $q->close();
+    }
+}
+$descripcion = implode(' | ', $items);
 
-// Descripción del pedido
-$descripcion = "Plato: $nombre_plato | Bebida: $bebida | Guarnición: $guarnicion | Ensalada: $ensalada | Tortillas: $tortillas";
-
-// ID del administrador (puede venir por sesión más adelante)
-$id_admin = 1;
-
-// Insertar pedido (ahora incluye id_plato en la tabla pedidos)
-$stmt = $conn->prepare("INSERT INTO pedidos (carnet_alumno, descripcion_pedido, monto, id_admin, fecha_reserva, id_plato) VALUES (?, ?, ?, ?, CURRENT_DATE, ?)");
-$stmt->bind_param("ssdii", $carnet, $descripcion, $total, $id_admin, $id_plato);
-
-if ($stmt->execute()) {
+// Insertar pedido
+$stmtIns = $conn->prepare(
+    "INSERT INTO pedidos (carnet_alumno, id_plato, descripcion_pedido, monto, fecha_reserva)
+     VALUES (?, ?, ?, ?, CURDATE())"
+);
+$stmtIns->bind_param('sisd', $carnet, $id_plato, $descripcion, $total);
+if ($stmtIns->execute()) {
     echo "<p class='text-center mt-10 font-bold text-green-600'>✅ Pedido registrado con éxito.</p>";
     echo "<p class='text-center'><a href='index.php' class='text-blue-600 underline'>Volver al menú</a></p>";
 } else {
-    echo "<p class='text-center mt-10 text-red-500 font-bold'>❌ Error al guardar el pedido: " . $stmt->error . "</p>";
+    echo "<p class='text-center mt-10 text-red-500 font-bold'>❌ Error al guardar: {$stmtIns->error}</p>";
 }
+$stmtIns->close();
 ?>

@@ -16,7 +16,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $stmtAlum->bind_param("ss", $carnet, $contrasena);
         $stmtAlum->execute();
         $resAlum = $stmtAlum->get_result();
-
         if ($alumno = $resAlum->fetch_assoc()) {
             $_SESSION['Usuario'] = [
                 'Carnet' => $alumno['carnet'],
