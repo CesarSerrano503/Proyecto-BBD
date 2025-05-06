@@ -61,7 +61,7 @@ $stmt2->close();
             <!-- Badge: number of items -->
             <span class="bg-yellow-400 text-black font-bold px-3 py-1 rounded"><?= htmlspecialchars($item_count) ?></span>
             <a href="index.php" class="text-gray-800 hover:underline font-medium">Menú del día</a>
-            <a href="su_pedido.php" class="text-gray-800 hover:underline font-medium">Su pedido</a>
+            <a href="ver_pedido.php" class="text-gray-800 hover:underline font-medium">Su pedido</a>
         </div>
         <div class="flex items-center gap-4">
             <!-- Total to pay -->
@@ -96,7 +96,7 @@ $stmt2->close();
                         <a href="pedido.php?id=<?= $plato['id_plato'] ?>">
                             <button class="bg-green-400 text-white px-4 py-1 rounded hover:bg-green-500">Reservar</button>
                         </a>
-                        <a href="info.php?id=<?= $plato['id_plato'] ?>">
+                        <a href="detalle_plato.php?id=<?= $plato['id_plato'] ?>">
                             <button class="bg-yellow-300 px-4 py-1 rounded hover:bg-yellow-400">Información</button>
                         </a>
                     </div>
