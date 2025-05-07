@@ -8,8 +8,7 @@ header("Expires: 0");
 
 // Verificar sesión de administrador
 if (!isset($_SESSION['Usuario']['Rol']) || $_SESSION['Usuario']['Rol'] !== 'admin') {
-    header('Location: ../login/login.php?cerrado=1');
-    exit();
+    header('Location: ../login/login.php?cerrado=1');    exit();
 }
 
 // Conexión a la base de datos
@@ -83,7 +82,7 @@ $platos = $conn->query('SELECT * FROM platos ORDER BY activo DESC, nombre');
     <section id="seccion-pedidos" class="seccion hidden bg-white p-6 rounded-xl shadow border border-gray-300">
       <h2 class="text-xl font-semibold flex items-center gap-2 mb-4">📝 Pedidos realizados</h2>
       <!-- Formulario de filtro por fechas -->
-      <form method="GET" class="flex gap-4 items-center mb-4">
+      <form method="GET" class="flex gap-4 items-ce-4">
         <input type="hidden" name="seccion" value="pedidos">
         <label class="flex items-center gap-1">Desde:<input type="date" name="desde" value="<?= htmlspecialchars($desde) ?>" class="border rounded p-1"></label>
         <label class="flex items-center gap-1">Hasta:<input type="date" name="hasta" value="<?= htmlspecialchars($hasta) ?>" class="border rounded p-1"></label>
@@ -155,6 +154,7 @@ $platos = $conn->query('SELECT * FROM platos ORDER BY activo DESC, nombre');
                       <a href="deshabilitar_plato.php?id=<?= $plato['id_plato'] ?>&estado=1" class="text-green-600 hover:underline">Habilitar</a>
                     <?php endif; ?>
                     <a href="eliminar_plato.php?id=<?= $plato['id_plato'] ?>" onclick="return confirm('¿Eliminar este plato?')" class="text-red-600 hover:underline">Eliminar</a>
+
                   </td>
                 </tr>
               <?php endwhile; ?>
@@ -170,14 +170,17 @@ $platos = $conn->query('SELECT * FROM platos ORDER BY activo DESC, nombre');
 </div>
 
 <script>
-  function mostrarSeccion(id) {
-    document.querySelectorAll('.seccion').forEach(sec => sec.classList.add('hidden'));
-    document.getElementById('seccion-' + id).classList.remove('hidden');
-  }
-  // Mostrar sección según parámetro o por defecto "dashboard"
-  const urlParams = new URLSearchParams(window.location.search);
-  const seccionActiva = urlParams.get('seccion') || 'dashboard';
-  mostrarSeccion(seccionActiva);
+  document.addEventListener('DOMContentLoaded', () => {
+    function mostrarSeccion(id) {
+      document.querySelectorAll('.seccion').forEach(sec => sec.classList.add('hidden'));
+      const seccionMostrar = document.getElementById('seccion-' + id);
+      if (seccionMostrar) seccionMostrar.classList.remove('hidden');
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const seccionActiva = urlParams.get('seccion') || 'dashboard';
+    mostrarSeccion(seccionActiva);
+  });
 </script>
 
 </body>

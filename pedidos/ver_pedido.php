@@ -16,12 +16,14 @@ if ($conn->connect_error) {
 
 $carnet = $_SESSION['Usuario']['Carnet'];
 
-// ✅ Consulta con cálculo del total (precio * cantidad)
-$sql = "SELECT p.id_pedido, p.fecha_reserva, pl.nombre AS plato, p.descripcion_pedido AS Descripción, p.monto AS total
+$sql = "SELECT p.id_pedido, p.fecha_reserva, GROUP_CONCAT(DISTINCT pl.nombre SEPARATOR ', ') AS platos, SUM(pp.monto) AS total
         FROM pedidos p
-        INNER JOIN platos pl ON p.id_plato = pl.id_plato
+        INNER JOIN pedido_plato pp ON p.id_pedido = pp.id_pedido
+        INNER JOIN platos pl ON pp.id_plato = pl.id_plato
         WHERE p.carnet_alumno = ?
+        GROUP BY p.id_pedido, p.fecha_reserva
         ORDER BY p.fecha_reserva ASC";
+
 
 $stmt = $conn->prepare($sql);
 $stmt->bind_param("s", $carnet);
@@ -46,7 +48,6 @@ $result = $stmt->get_result();
                     <tr class="bg-gray-200 text-left text-sm">
                         <th class="px-4 py-2">Fecha</th>
                         <th class="px-4 py-2">Plato</th>
-                        <th class="px-4 py-2">Descripción</th>
                         <th class="px-4 py-2">Total</th>
                     </tr>
                 </thead>
@@ -54,8 +55,7 @@ $result = $stmt->get_result();
                     <?php while($row = $result->fetch_assoc()): ?>
                         <tr class="border-b hover:bg-gray-50">
                             <td class="px-4 py-2"><?= htmlspecialchars($row['fecha_reserva']) ?></td>
-                            <td class="px-4 py-2"><?= htmlspecialchars($row['plato']) ?></td>
-                            <td class="px-4 py-2">$<?= htmlspecialchars($row['Descripción'], 2) ?></td>
+                            <td class="px-4 py-2"><?= htmlspecialchars($row['platos']) ?></td>
                             <td class="px-4 py-2">$<?= number_format($row['total'], 2) ?></td>
                         </tr>
                     <?php endwhile; ?>

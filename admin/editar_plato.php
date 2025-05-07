@@ -64,16 +64,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_FILES['imagen']) && $_FILES['imagen']['error'] !== UPLOAD_ERR_NO_FILE) {
         $archivo = $_FILES['imagen'];
         $permitidos = ['image/jpeg', 'image/png', 'image/webp'];
-        $type = mime_content_type($archivo['tmp_name']);
         if ($archivo['error'] !== UPLOAD_ERR_OK) {
-            $errors[] = 'Error al subir la imagen.';
-        } elseif (!in_array($type, $permitidos)) {
-            $errors[] = 'Solo JPG, PNG o WEBP (≤2MB).';
-        } elseif ($archivo['size'] > 2*1024*1024) {
-            $errors[] = 'La imagen no debe superar 2MB.';
-        } else {
-            $nuevoBlob = file_get_contents($archivo['tmp_name']);
-        }
+          $errors[] = 'Error al subir la imagen.';
+      } elseif (!is_uploaded_file($archivo['tmp_name'])) {
+          $errors[] = 'El archivo no es válido.';
+      } else {
+          $type = mime_content_type($archivo['tmp_name']);
+          if (!in_array($type, $permitidos)) {
+              $errors[] = 'Solo JPG, PNG o WEBP (≤2MB).';
+          } elseif ($archivo['size'] > 2*1024*1024) {
+              $errors[] = 'La imagen no debe superar 2MB.';
+          } else {
+              $nuevoBlob = file_get_contents($archivo['tmp_name']);
+          }
+      }
+      
     }
 
     // Si no hay errores, llamar al SP para actualizar plato

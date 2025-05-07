@@ -31,10 +31,11 @@ $stmt->close();
 // ───────── USER ORDER SUMMARY FOR TODAY ─────────
 $carnet = $_SESSION['Usuario']['Carnet'];
 $stmt2 = $conn->prepare(
-    'SELECT COUNT(*) AS item_count, COALESCE(SUM(monto),0) AS total
-     FROM pedidos
-     WHERE carnet_alumno = ?
-       AND fecha_reserva = CURDATE()'
+    'SELECT COUNT(*) AS item_count, COALESCE(SUM(pp.monto), 0) AS total
+     FROM pedidos p
+     JOIN pedido_plato pp ON p.id_pedido = pp.id_pedido
+     WHERE p.carnet_alumno = ? 
+       AND p.fecha_reserva = CURDATE()'
 );
 $stmt2->bind_param('s', $carnet);
 $stmt2->execute();
@@ -43,6 +44,7 @@ $summary = $res2->fetch_assoc();
 $item_count   = $summary['item_count'];
 $total_to_pay = $summary['total'];
 $stmt2->close();
+
 ?>
 
 <!DOCTYPE html>
