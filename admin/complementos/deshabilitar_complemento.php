@@ -7,10 +7,11 @@ if (empty($_SESSION['Usuario']['Rol']) || $_SESSION['Usuario']['Rol']!=='admin')
 $conn = new mysqli('localhost','root','','reservas_db');
 if ($conn->connect_error) die('Error de conexión');
 
-$id = $_GET['id'] ?? null;
-if ($id) {
-    $stmt = $conn->prepare("DELETE FROM complementos WHERE id_complemento=?");
-    $stmt->bind_param('i',$id);
+$id     = $_GET['id']     ?? null;
+$estado = $_GET['estado'] ?? null;
+if ($id!==null && ($estado=== '0' || $estado==='1')) {
+    $stmt = $conn->prepare("UPDATE complementos SET activo=? WHERE id_complemento=?");
+    $stmt->bind_param('ii',$estado,$id);
     $stmt->execute();
 }
 
