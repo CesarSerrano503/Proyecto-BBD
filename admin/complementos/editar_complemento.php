@@ -1,29 +1,37 @@
 <?php
 session_start();
-if (empty($_SESSION['Usuario']['Rol']) || $_SESSION['Usuario']['Rol']!=='admin') {
+if (empty($_SESSION['Usuario']['Rol']) || $_SESSION['Usuario']['Rol'] !== 'admin') {
     header('Location: ../login/login.php?cerrado=1');
     exit;
 }
 
+// Conexión a la base de datos y set de usuario para triggers
 $conn = new mysqli('localhost','root','','reservas_db');
-if ($conn->connect_error) die('Error de conexión');
+if ($conn->connect_error) {
+    die('Error de conexión: ' . $conn->connect_error);
+}
+// Inyectar el nombre del admin en MySQL para que los triggers lo usen
+$adminName = $conn->real_escape_string($_SESSION['Usuario']['Nombre']);
+$conn->query("SET @currentAdmin = '{$adminName}';");
 
+// Obtener ID
 $id = $_GET['id'] ?? null;
 if (!$id) {
     header('Location: ../dashboard.php?seccion=complementos');
     exit;
 }
 
-if ($_SERVER['REQUEST_METHOD']==='POST') {
+// Procesar formulario
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nombre = $_POST['nombre'];
     $tipo   = $_POST['tipo'];
     $precio = $_POST['precio'];
     $activo = isset($_POST['activo']) ? 1 : 0;
 
     $stmt = $conn->prepare(
-      "UPDATE complementos 
-         SET nombre = ?, tipo = ?, precio = ?, activo = ?
-       WHERE id_complemento = ?"
+        "UPDATE complementos 
+            SET nombre = ?, tipo = ?, precio = ?, activo = ?
+          WHERE id_complemento = ?"
     );
     $stmt->bind_param('ssdii', $nombre, $tipo, $precio, $activo, $id);
     $stmt->execute();
@@ -100,7 +108,8 @@ $tipos = [
     </div>
 
     <div class="flex space-x-4">
-      <button type="submit" class="bg-blue-600 text-white px-5 py-2 rounded hover:bg-blue-700">
+      <button type="submit"
+              class="bg-blue-600 text-white px-5 py-2 rounded hover:bg-blue-700">
         Actualizar
       </button>
       <a href="../dashboard.php?seccion=complementos"
