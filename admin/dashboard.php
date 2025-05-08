@@ -1,14 +1,15 @@
+
 <?php
 session_start();
 
-// 🔐 Evitar caché del navegador
-header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+// 🔐 Evitar caché del navegador\ nheader("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
 header("Pragma: no-cache");
 header("Expires: 0");
 
 // Verificar sesión de administrador
 if (!isset($_SESSION['Usuario']['Rol']) || $_SESSION['Usuario']['Rol'] !== 'admin') {
-    header('Location: ../login/login.php?cerrado=1');    exit();
+    header('Location: ../login/login.php?cerrado=1');
+    exit();
 }
 
 // Conexión a la base de datos
@@ -17,21 +18,43 @@ if ($conn->connect_error) {
     die('Error de conexión: ' . $conn->connect_error);
 }
 
-// ───────────── Sección de Pedidos ─────────────
-// Recogemos rango de fechas desde GET o usamos hoy como valor por defecto
-$desde = $_GET['desde'] ?? date('Y-m-d');
-$hasta = $_GET['hasta'] ?? date('Y-m-d');
+// ───────────── Sección y filtros ─────────────
+$seccion = $_GET['seccion'] ?? 'dashboard';
+// valores de filtro: rango por defecto últimos 7 días
+$fdesde = $_GET['desde'] ?? date('Y-m-d', strtotime('-7 days'));
+$fhasta = $_GET['hasta'] ?? date('Y-m-d');
 
-// Llamar al procedimiento almacenado para listar pedidos
-$stmt = $conn->prepare('CALL sp_listar_pedidos(?, ?)');
-$stmt->bind_param('ss', $desde, $hasta);
-$stmt->execute();
-// Obtener resultado (requiere mysqlnd)
-$pedidos = $stmt->get_result();
-$stmt->close();
+// ───────────── Pedidos ─────────────
+$pedidos = null;
+if ($seccion === 'pedidos') {
+    // Consulta directa con LEFT JOIN y COALESCE
+    $sqlPedidos = sprintf(
+        "SELECT
+             p.fecha_reserva AS fecha,
+             a.nombre AS alumno,
+             p.carnet_alumno AS carnet,
+             p.descripcion_pedido AS descripcion,
+             COALESCE(SUM(pp.monto),0) AS monto
+           FROM pedidos p
+           JOIN alumnos a ON p.carnet_alumno = a.carnet
+           LEFT JOIN pedido_plato pp ON pp.id_pedido = p.id_pedido
+          WHERE p.fecha_reserva BETWEEN '%s' AND '%s'
+          GROUP BY p.id_pedido
+          ORDER BY p.fecha_reserva DESC",
+        $conn->real_escape_string($fdesde),
+        $conn->real_escape_string($fhasta)
+    );
+    $pedidos = $conn->query($sqlPedidos);
+    if (!$pedidos) {
+        die('Error al obtener pedidos: ' . $conn->error);
+    }
+}
 
-// ───────────── Sección de Platos ─────────────
+// ───────────── Platos ─────────────
 $platos = $conn->query('SELECT * FROM platos ORDER BY activo DESC, nombre');
+if (!$platos) {
+    die('Error al obtener platos: ' . $conn->error);
+}
 ?>
 
 <!DOCTYPE html>
@@ -40,7 +63,6 @@ $platos = $conn->query('SELECT * FROM platos ORDER BY activo DESC, nombre');
   <meta charset="UTF-8">
   <title>Panel de Administración</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <style>html { scroll-behavior: smooth; }</style>
 </head>
 <body class="bg-gray-100 font-sans">
 <div class="flex h-screen">
@@ -49,46 +71,36 @@ $platos = $conn->query('SELECT * FROM platos ORDER BY activo DESC, nombre');
   <aside class="w-64 bg-white shadow-lg border-r flex flex-col justify-between">
     <div>
       <div class="bg-blue-600 text-white text-center p-4 text-xl font-bold">Admin Panel</div>
-      <div class="p-4">
-        <div class="text-center mb-6">
-          <img src="https://i.pravatar.cc/100" alt="Avatar" class="rounded-full mx-auto mb-2" width="60" />
-          <p class="text-sm font-semibold">Admin</p>
-        </div>
-        <nav class="space-y-1">
-          <a href="dashboard.php?seccion=dashboard" class="block px-4 py-2 rounded text-gray-700 hover:bg-blue-50">📊 Dashboard</a>
-          <a href="dashboard.php?seccion=pedidos" class="block px-4 py-2 rounded text-gray-700 hover:bg-blue-50">📝 Pedidos</a>
-          <a href="dashboard.php?seccion=platos" class="block px-4 py-2 rounded text-gray-700 hover:bg-blue-50">🍽️ Platos</a>
-          <a href="historial.php" class="block px-4 py-2 rounded text-gray-700 hover:bg-blue-50">🕒 Historial</a>
-          <a href="../login/logout.php" class="block px-4 py-2 rounded text-red-600 hover:bg-red-50">🚪 Cerrar sesión</a>
-        </nav>
-      </div>
+      <nav class="p-4 space-y-1">
+        <a href="dashboard.php?seccion=dashboard" class="block px-4 py-2 rounded hover:bg-blue-50 <?= $seccion==='dashboard'?'bg-blue-100':'' ?>">📊 Dashboard</a>
+        <a href="dashboard.php?seccion=pedidos" class="block px-4 py-2 rounded hover:bg-blue-50 <?= $seccion==='pedidos'?'bg-blue-100':'' ?>">📝 Pedidos</a>
+        <a href="dashboard.php?seccion=platos" class="block px-4 py-2 rounded hover:bg-blue-50 <?= $seccion==='platos'?'bg-blue-100':'' ?>">🍽️ Platos</a>
+        <a href="historial.php" class="block px-4 py-2 rounded hover:bg-blue-50">🕒 Historial</a>
+        <a href="../login/logout.php" class="block px-4 py-2 rounded text-red-600 hover:bg-red-50">🚪 Cerrar sesión</a>
+      </nav>
     </div>
     <footer class="text-center text-gray-400 text-xs mb-4">© <?= date('Y') ?> Sistema de Reservas</footer>
   </aside>
 
   <!-- CONTENIDO PRINCIPAL -->
-  <main class="flex-1 overflow-y-auto p-8 space-y-10">
+  <main class="flex-1 overflow-y-auto p-8">
 
     <!-- DASHBOARD -->
-    <section id="seccion-dashboard" class="seccion bg-white p-6 rounded-xl shadow border border-gray-300">
-      <h1 class="text-3xl font-bold text-gray-800 flex items-center gap-2">
-        <span class="text-indigo-600">📋</span>
-        Panel de Administración
-      </h1>
-      <p class="text-gray-500">Bienvenido/a, utiliza el menú para navegar entre secciones.</p>
+    <section class="<?= $seccion==='dashboard'?'':'hidden' ?>">
+      <h1 class="text-3xl font-bold mb-4">Panel de Administración</h1>
+      <p class="text-gray-600">Bienvenido/a, utiliza el menú para navegar entre secciones.</p>
     </section>
 
     <!-- PEDIDOS -->
-    <section id="seccion-pedidos" class="seccion hidden bg-white p-6 rounded-xl shadow border border-gray-300">
-      <h2 class="text-xl font-semibold flex items-center gap-2 mb-4">📝 Pedidos realizados</h2>
-      <!-- Formulario de filtro por fechas -->
-      <form method="GET" class="flex gap-4 items-ce-4">
+    <section class="<?= $seccion==='pedidos'?'':'hidden' ?>">
+      <h2 class="text-2xl font-semibold mb-4">📝 Pedidos realizados</h2>
+      <!-- Formulario de filtro -->
+      <form method="GET" class="flex gap-4 mb-6">
         <input type="hidden" name="seccion" value="pedidos">
-        <label class="flex items-center gap-1">Desde:<input type="date" name="desde" value="<?= htmlspecialchars($desde) ?>" class="border rounded p-1"></label>
-        <label class="flex items-center gap-1">Hasta:<input type="date" name="hasta" value="<?= htmlspecialchars($hasta) ?>" class="border rounded p-1"></label>
-        <button class="bg-blue-500 text-white px-4 py-1 rounded hover:bg-blue-600">Filtrar</button>
+        <label>Desde: <input type="date" name="desde" value="<?= htmlspecialchars($fdesde) ?>" class="border rounded px-2 py-1"></label>
+        <label>Hasta: <input type="date" name="hasta" value="<?= htmlspecialchars($fhasta) ?>" class="border rounded px-2 py-1"></label>
+        <button class="bg-blue-600 text-white px-4 py-1 rounded hover:bg-blue-700">Filtrar</button>
       </form>
-      <!-- Tabla de pedidos -->
       <div class="overflow-x-auto border rounded">
         <table class="w-full text-sm text-left">
           <thead class="bg-gray-100 text-gray-700">
@@ -101,18 +113,18 @@ $platos = $conn->query('SELECT * FROM platos ORDER BY activo DESC, nombre');
             </tr>
           </thead>
           <tbody>
-            <?php if ($pedidos && $pedidos->num_rows > 0): ?>
+            <?php if ($pedidos->num_rows > 0): ?>
               <?php while ($p = $pedidos->fetch_assoc()): ?>
                 <tr class="border-b hover:bg-gray-50">
                   <td class="p-2"><?= htmlspecialchars($p['fecha']) ?></td>
                   <td class="p-2"><?= htmlspecialchars($p['alumno']) ?></td>
                   <td class="p-2"><?= htmlspecialchars($p['carnet']) ?></td>
                   <td class="p-2"><?= htmlspecialchars($p['descripcion']) ?></td>
-                  <td class="p-2 text-right">$<?= number_format($p['monto'], 2) ?></td>
+                  <td class="p-2 text-right">$<?= number_format($p['monto'],2) ?></td>
                 </tr>
               <?php endwhile; ?>
             <?php else: ?>
-              <tr><td colspan="5" class="p-4 text-center text-gray-500">No hay pedidos en este rango.</td></tr>
+              <tr><td colspan="5" class="p-4 text-center text-gray-500">No hay pedidos en ese rango.</td></tr>
             <?php endif; ?>
           </tbody>
         </table>
@@ -120,10 +132,10 @@ $platos = $conn->query('SELECT * FROM platos ORDER BY activo DESC, nombre');
     </section>
 
     <!-- PLATOS -->
-    <section id="seccion-platos" class="seccion hidden bg-white p-6 rounded-xl shadow border border-gray-300">
+    <section class="<?= $seccion==='platos'?'':'hidden' ?> mt-8">
       <div class="flex justify-between items-center mb-4">
-        <h2 class="text-xl font-semibold flex items-center gap-2">🍽️ Gestión de Platos</h2>
-        <a href="agregar_plato.php" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">+ Agregar plato</a>
+        <h2 class="text-2xl font-semibold">🍽️ Gestión de Platos</h2>
+        <a href="platos/agregar_plato.php" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">+ Agregar plato</a>
       </div>
       <div class="overflow-x-auto border rounded">
         <table class="w-full text-sm text-left">
@@ -138,50 +150,28 @@ $platos = $conn->query('SELECT * FROM platos ORDER BY activo DESC, nombre');
             </tr>
           </thead>
           <tbody>
-            <?php if ($platos && $platos->num_rows > 0): ?>
-              <?php while ($plato = $platos->fetch_assoc()): ?>
-                <tr class="border-b hover:bg-gray-50">
-                  <td class="p-2"><?php if (!empty($plato['imagen'])): ?><img src="data:image/jpeg;base64,<?= base64_encode($plato['imagen']) ?>" class="w-20 h-16 object-cover rounded"><?php else: ?><span class="text-gray-400 italic">Sin imagen</span><?php endif; ?></td>
-                  <td class="p-2"><?= htmlspecialchars($plato['nombre']) ?></td>
-                  <td class="p-2"><?= htmlspecialchars($plato['descripcion']) ?></td>
-                  <td class="p-2">$<?= number_format($plato['precio'], 2) ?></td>
-                  <td class="p-2"><?= $plato['activo'] ? '🟢 Activo' : '🔴 Inactivo' ?></td>
-                  <td class="p-2 text-center space-x-2">
-                    <a href="editar_plato.php?id=<?= $plato['id_plato'] ?>" class="text-blue-600 hover:underline">Editar</a>
-                    <?php if ($plato['activo']): ?>
-                      <a href="deshabilitar_plato.php?id=<?= $plato['id_plato'] ?>&estado=0" class="text-yellow-600 hover:underline">Deshabilitar</a>
-                    <?php else: ?>
-                      <a href="deshabilitar_plato.php?id=<?= $plato['id_plato'] ?>&estado=1" class="text-green-600 hover:underline">Habilitar</a>
-                    <?php endif; ?>
-                    <a href="eliminar_plato.php?id=<?= $plato['id_plato'] ?>" onclick="return confirm('¿Eliminar este plato?')" class="text-red-600 hover:underline">Eliminar</a>
-
-                  </td>
-                </tr>
-              <?php endwhile; ?>
-            <?php else: ?>
+            <?php if ($platos->num_rows > 0): while ($pl = $platos->fetch_assoc()): ?>
+              <tr class="border-b hover:bg-gray-50">
+                <td class="p-2"><?php if (!empty($pl['imagen'])): ?><img src="data:image/jpeg;base64,<?= base64_encode($pl['imagen']) ?>" class="w-20 h-16 object-cover rounded"><?php else: ?><span class="italic text-gray-400">Sin imagen</span><?php endif; ?></td>
+                <td class="p-2"><?= htmlspecialchars($pl['nombre']) ?></td>
+                <td class="p-2"><?= htmlspecialchars($pl['descripcion']) ?></td>
+                <td class="p-2">$<?= number_format($pl['precio'],2) ?></td>
+                <td class="p-2"><?= $pl['activo'] ? '🟢 Activo' : '🔴 Inactivo' ?></td>
+                <td class="p-2 text-center space-x-2">
+                  <a href="platos/editar_plato.php?id=<?= $pl['id_plato'] ?>" class="text-blue-600 hover:underline">Editar</a>
+                  <?php if ($pl['activo']): ?><a href="platos/deshabilitar_plato.php?id=<?= $pl['id_plato'] ?>&estado=0" class="text-yellow-600 hover:underline">Deshabilitar</a><?php else: ?><a href="platos/deshabilitar_plato.php?id=<?= $pl['id_plato'] ?>&estado=1" class="text-green-600 hover:underline">Habilitar</a><?php endif; ?>
+                  <a href="platos/eliminar_plato.php?id=<?= $pl['id_plato'] ?>" onclick="return confirm('¿Eliminar este plato?')" class="text-red-600 hover:underline">Eliminar</a>
+                </td>
+              </tr>
+            <?php endwhile; else: ?>
               <tr><td colspan="6" class="p-4 text-center text-gray-500">No hay platos registrados.</td></tr>
             <?php endif; ?>
           </tbody>
         </table>
       </div>
     </section>
-
   </main>
 </div>
-
-<script>
-  document.addEventListener('DOMContentLoaded', () => {
-    function mostrarSeccion(id) {
-      document.querySelectorAll('.seccion').forEach(sec => sec.classList.add('hidden'));
-      const seccionMostrar = document.getElementById('seccion-' + id);
-      if (seccionMostrar) seccionMostrar.classList.remove('hidden');
-    }
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const seccionActiva = urlParams.get('seccion') || 'dashboard';
-    mostrarSeccion(seccionActiva);
-  });
-</script>
-
 </body>
 </html>
+
