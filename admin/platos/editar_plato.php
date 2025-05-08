@@ -26,8 +26,8 @@ if (!$id) {
 // ───────── FETCH CURRENT DATA ─────────
 $stmt = $conn->prepare(
     'SELECT nombre, descripcion, precio, limite_disponible, activo, imagen
-       FROM platos
-      WHERE id_plato = ?'
+     FROM platos
+     WHERE id_plato = ?'
 );
 $stmt->bind_param('i', $id);
 $stmt->execute();
@@ -56,26 +56,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $precio = filter_input(INPUT_POST, 'precio', FILTER_VALIDATE_FLOAT);
     $limite = filter_input(INPUT_POST, 'limite_disponible', FILTER_VALIDATE_INT);
 
-    // 3) Active flag
-    $activo = isset($_POST['activo']) ? 1 : 0;
-
-    // Basic validations
+    // 3) Basic validations
     if ($nombre === '')      $errors[] = 'El nombre del plato es obligatorio.';
     if ($descripcion === '') $errors[] = 'La descripción es obligatoria.';
     if ($precio === false || $precio <= 0) $errors[] = 'El precio debe ser un número mayor a 0.';
     if ($limite === false || $limite < 0)  $errors[] = 'El límite debe ser un entero ≥ 0.';
 
-    // Process new image if uploaded
+    // 4) Process optional image upload
     $nuevoBlob = null;
     if (!empty($_FILES['imagen']['tmp_name'])) {
         $archivo    = $_FILES['imagen'];
         $permitidos = ['image/jpeg','image/png','image/webp'];
-
+        $type       = mime_content_type($archivo['tmp_name']);
         if ($archivo['error'] !== UPLOAD_ERR_OK) {
             $errors[] = 'Error al subir la imagen.';
-        } elseif (!in_array(mime_content_type($archivo['tmp_name']), $permitidos)) {
+        } elseif (!in_array($type, $permitidos)) {
             $errors[] = 'Solo JPG, PNG o WEBP (≤2MB).';
-        } elseif ($archivo['size'] > 2*1024*1024) {
+        } elseif ($archivo['size'] > 2 * 1024 * 1024) {
             $errors[] = 'La imagen no debe superar 2MB.';
         } else {
             $nuevoBlob = file_get_contents($archivo['tmp_name']);
@@ -83,20 +80,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($errors)) {
-        // ───────── SET MYSQL @usuario FOR TRIGGER ─────────
+        // 5) Set @usuario for triggers
         $usuario = $_SESSION['Usuario']['Nombre'];
-        $conn->query(
-            "SET @usuario = " .
-            $conn->real_escape_string("'" . $usuario . "'")
-        );
+        $conn->query("SET @usuario = '" . $conn->real_escape_string($usuario) . "'");
 
-        // ───────── CALL STORED PROCEDURE ─────────
-        $sql    = "CALL sp_editar_plato(?, ?, ?, ?, ?, ?, ?, ?)";
+        // 6) Call stored procedure with 8 params
+        $sql    = 'CALL sp_editar_plato(?, ?, ?, ?, ?, ?, ?, ?)';
         $stmtSP = $conn->prepare($sql);
         $null   = null;
-
-        // Types: i,id_plato; s,nombre; s,descripcion; d,precio;
-        // i,limite; i,activo; b,imagen; s,usuario
         $stmtSP->bind_param(
             'issdiibs',
             $id,
@@ -108,21 +99,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $null,
             $usuario
         );
-
+        // send blob as 7th param (index 6)
         if ($nuevoBlob !== null) {
             $stmtSP->send_long_data(6, $nuevoBlob);
         }
-
         if ($stmtSP->execute()) {
             $stmtSP->close();
-            header('Location: dashboard.php?seccion=platos');
+            header('Location: ../dashboard.php?seccion=platos');
             exit();
         } else {
-            $errors[] = 'Error al ejecutar sp_editar_plato: ' . htmlspecialchars($stmtSP->error);
+            $errors[] = 'Error al actualizar plato: ' . htmlspecialchars($stmtSP->error);
         }
     }
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -145,66 +136,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php endif; ?>
 
     <form method="POST" enctype="multipart/form-data" class="space-y-4">
-      <!-- Nombre -->
       <div>
-        <label class="block text-sm font-medium text-gray-700">Nombre del plato</label>
-        <input type="text" name="nombre" required
-               value="<?= htmlspecialchars($nombre) ?>"
-               class="mt-1 block w-full border rounded p-2" />
+        <label class="block text-sm font-medium text-gray-700">Nombre</label>
+        <input type="text" name="nombre" value="<?= htmlspecialchars($nombre) ?>" required class="mt-1 block w-full border rounded p-2" />
       </div>
-      <!-- Descripción -->
       <div>
         <label class="block text-sm font-medium text-gray-700">Descripción</label>
-        <textarea name="descripcion" rows="3" required
-                  class="mt-1 block w-full border rounded p-2"><?= htmlspecialchars($descripcion) ?></textarea>
+        <textarea name="descripcion" rows="3" required class="mt-1 block w-full border rounded p-2"><?= htmlspecialchars($descripcion) ?></textarea>
       </div>
-      <!-- Precio y Límite -->
       <div class="grid grid-cols-2 gap-4">
         <div>
           <label class="block text-sm font-medium text-gray-700">Precio ($)</label>
-          <input type="number" step="0.01" min="0" name="precio"
-                 value="<?= htmlspecialchars($precio) ?>"
-                 required class="mt-1 block w-full border rounded p-2" />
+          <input type="number" step="0.01" min="0" name="precio" value="<?= htmlspecialchars($precio) ?>" required class="mt-1 block w-full border rounded p-2" />
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700">Límite disponible</label>
-          <input type="number" min="0" name="limite_disponible"
-                 value="<?= htmlspecialchars($limite) ?>"
-                 required class="mt-1 block w-full border rounded p-2" />
+          <label class="block text-sm font-medium text-gray-700">Límite Disponible</label>
+          <input type="number" min="0" name="limite_disponible" value="<?= htmlspecialchars($limite) ?>" required class="mt-1 block w-full border rounded p-2" />
         </div>
       </div>
-      <!-- Imagen actual -->
       <div>
-        <label class="block text-sm font-medium text-gray-700">Imagen actual</label>
+        <label class="block text-sm font-medium text-gray-700">Imagen Actual</label>
         <?php if (!empty($plato['imagen'])): ?>
-          <img src="data:image/jpeg;base64,<?= base64_encode($plato['imagen']) ?>"
-               class="w-24 h-20 object-cover rounded mb-2" />
+          <img src="data:image/jpeg;base64,<?= base64_encode($plato['imagen']) ?>" class="w-24 h-20 object-cover rounded mb-2" />
         <?php else: ?>
           <span class="text-gray-500 italic">No hay imagen</span>
         <?php endif; ?>
       </div>
-      <!-- Nueva imagen -->
       <div>
-        <label class="block text-sm font-medium text-gray-700">Nueva imagen (opcional)</label>
-        <input type="file" name="imagen"
-               accept="image/jpeg,image/png,image/webp"
-               class="mt-1 block w-full border rounded p-2" />
+        <label class="block text-sm font-medium text-gray-700">Nueva Imagen (opcional)</label>
+        <input type="file" name="imagen" accept="image/jpeg,image/png,image/webp" class="mt-1 block w-full border rounded p-2" />
       </div>
-      <!-- Activo -->
-      <div class="flex items-center gap-2">
-        <input type="checkbox" name="activo" id="activo"
-               <?= $activo ? 'checked' : '' ?>
-               class="rounded border-gray-300" />
-        <label for="activo" class="text-sm text-gray-700">Activo</label>
-      </div>
-      <!-- Buttons -->
       <div class="flex justify-between mt-6">
-        <a href="dashboard.php?seccion=platos"
-           class="text-gray-600 hover:underline">⬅ Cancelar</a>
-        <button type="submit"
-                class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
-          Guardar cambios
-        </button>
+        <a href="../dashboard.php?seccion=platos" class="text-gray-600 hover:underline">⬅ Cancelar</a>
+        <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">Guardar Cambios</button>
       </div>
     </form>
   </div>

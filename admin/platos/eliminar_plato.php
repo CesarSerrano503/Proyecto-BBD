@@ -22,6 +22,7 @@ $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
 if (!$id) {
     die('ID no válido.');
 }
+
 // ───────── SET MYSQL @usuario FOR TRIGGERS ─────────
 $usuario = $_SESSION['Usuario']['Nombre'] ?? 'admin';
 $conn->query(
@@ -32,7 +33,8 @@ $conn->query(
 if ($stmt = $conn->prepare('CALL sp_eliminar_plato(?, ?)')) {
     $stmt->bind_param('is', $id, $usuario);
     if ($stmt->execute()) {
-        header('Location: dashboard.php?seccion=platos');
+        // Redirigir de vuelta al dashboard de administración
+        header('Location: ../dashboard.php?seccion=platos');
         exit();
     } else {
         echo 'Error al eliminar el plato: ' . htmlspecialchars($stmt->error);

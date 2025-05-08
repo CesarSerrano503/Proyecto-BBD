@@ -1,3 +1,4 @@
+
 <?php
 // ───────── SESSION & CACHE ─────────
 session_start();
@@ -18,28 +19,28 @@ if ($conn->connect_error) {
 }
 
 $errors = [];
-// initial form values
+// valores por defecto
 $nombre = '';
 $descripcion = '';
 $precio = '';
 $limite = '';
-$activo = 1;
+// siempre inactivo al crear
+$activo = 0;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // sanitize inputs
+    // sanitizar entradas
     $nombre      = trim($_POST['nombre'] ?? '');
     $descripcion = trim($_POST['descripcion'] ?? '');
     $precio      = filter_input(INPUT_POST, 'precio', FILTER_VALIDATE_FLOAT);
     $limite      = filter_input(INPUT_POST, 'limite_disponible', FILTER_VALIDATE_INT);
-    $activo      = isset($_POST['activo']) ? 1 : 0;
 
-    // basic validation
+    // validaciones
     if ($nombre === '')      $errors[] = 'El nombre del plato es obligatorio.';
     if ($descripcion === '') $errors[] = 'La descripción es obligatoria.';
     if ($precio === false || $precio <= 0) $errors[] = 'El precio debe ser un número mayor a 0.';
     if ($limite === false || $limite < 0)  $errors[] = 'El límite debe ser un entero ≥ 0.';
 
-    // image validation
+    // validación de imagen
     if (empty($_FILES['imagen']['tmp_name'])) {
         $errors[] = 'La imagen del plato es obligatoria.';
     } else {
@@ -48,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $type = mime_content_type($file['tmp_name']);
         if (!in_array($type, $allowed)) {
             $errors[] = 'Solo JPG, PNG o WEBP (≤2MB).';
-        } elseif ($file['size'] > 2*1024*1024) {
+        } elseif ($file['size'] > 2 * 1024 * 1024) {
             $errors[] = 'La imagen no debe superar 2MB.';
         } else {
             $blob = file_get_contents($file['tmp_name']);
@@ -56,16 +57,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($errors)) {
-        // set @usuario for triggers
+        // set usuario para trigger
         $usuario = $_SESSION['Usuario']['Nombre'];
         $conn->query("SET @usuario = '" . $conn->real_escape_string($usuario) . "'");
 
-        // call stored procedure
+        // llamar sp para crear
         $sql = "CALL sp_crear_plato(?, ?, ?, ?, ?, ?, ?)";
         $stmt = $conn->prepare($sql);
         $null = null;
+        // bind: nombre, descripcion, precio, limite, activo, imagen(blob), usuario
         $stmt->bind_param(
-            'ssdiiis',
+            'ssdiibs',
             $nombre,
             $descripcion,
             $precio,
@@ -74,14 +76,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $null,
             $usuario
         );
+        // enviar blob en posición 5
         $stmt->send_long_data(5, $blob);
 
         if ($stmt->execute()) {
             $stmt->close();
-            header('Location: dashboard.php?seccion=platos');
+            header('Location: ../dashboard.php?seccion=platos');
             exit();
         } else {
-            $errors[] = 'Error al ejecutar sp_crear_plato: ' . htmlspecialchars($stmt->error);
+            $errors[] = 'Error al crear plato: ' . htmlspecialchars($stmt->error);
         }
     }
 }
@@ -96,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 <body class="bg-gray-100 min-h-screen flex items-center justify-center">
   <div class="bg-white p-8 rounded shadow-md w-full max-w-lg">
-    <h2 class="text-2xl font-bold mb-6 text-gray-800 text-center">➕ Agregar nuevo plato</h2>
+    <h2 class="text-2xl font-bold mb-6 text-gray-800 text-center">➕ Agregar Nuevo Plato</h2>
 
     <?php if (!empty($errors)): ?>
       <div class="bg-red-100 text-red-700 px-4 py-2 mb-4 rounded">
@@ -131,15 +134,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <label class="block text-sm font-medium text-gray-700">Imagen del plato</label>
         <input type="file" name="imagen" accept="image/jpeg,image/png,image/webp" required class="mt-1 block w-full border rounded p-2" />
       </div>
-      <div class="flex items-center gap-2">
-        <input type="checkbox" name="activo" id="activo" <?= $activo ? 'checked' : '' ?> class="rounded border-gray-300" />
-        <label for="activo" class="text-sm text-gray-700">Activo</label>
-      </div>
       <div class="flex justify-between mt-6">
-        <a href="dashboard.php?seccion=platos" class="text-gray-600 hover:underline">⬅ Cancelar</a>
+        <a href="../dashboard.php?seccion=platos" class="text-gray-600 hover:underline">⬅ Cancelar</a>
         <button type="submit" class="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">Guardar</button>
       </div>
     </form>
   </div>
 </body>
 </html>
+

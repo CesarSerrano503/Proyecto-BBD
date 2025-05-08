@@ -37,6 +37,7 @@ if ($stmt->execute()) {
     // Registrar en historial
     $usuario = $_SESSION['Usuario']['Nombre'] ?? 'admin';
     $accion = $estado ? 'habilitar' : 'deshabilitar';
+
     // Obtener nombre del plato para mayor detalle
     $res = $conn->prepare('SELECT nombre FROM platos WHERE id_plato = ?');
     $res->bind_param('i', $id);
@@ -45,12 +46,13 @@ if ($stmt->execute()) {
     $res->fetch();
     $res->close();
 
-    $detalle = ucfirst($accion) . " plato: " . ($nombrePlato ?? "ID $id");
+    $detalle = ucfirst($accion) . ' plato: ' . ($nombrePlato ?? "ID $id");
     $hist = $conn->prepare("INSERT INTO historial (fecha, usuario, accion, detalle) VALUES (NOW(), ?, ?, ?)");
     $hist->bind_param('sss', $usuario, $accion, $detalle);
     $hist->execute();
 
-    header('Location: dashboard.php?seccion=platos');
+    // Redirigir de vuelta al dashboard de administración
+    header('Location: ../dashboard.php?seccion=platos');
     exit();
 } else {
     echo 'Error al cambiar el estado del plato.';
