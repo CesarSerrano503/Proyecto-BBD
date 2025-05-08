@@ -1,7 +1,8 @@
 <?php
 session_start();
 
-// 🔐 Evitar caché navegador\header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+// 🔐 Evitar caché del navegador
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
 header("Pragma: no-cache");
 header("Expires: 0");
 
@@ -17,14 +18,17 @@ if ($conn->connect_error) {
     die('Error de conexión: ' . $conn->connect_error);
 }
 
-// Consultar historial de cambios
-$query = "SELECT fecha, usuario, accion, detalle FROM historial ORDER BY fecha DESC";
+// Consultar historial de cambios, incluyendo nombre_tabla
+$query = "
+    SELECT fecha, usuario, accion, detalle, nombre_tabla
+    FROM historial
+    ORDER BY fecha DESC
+";
 $historial = $conn->query($query);
 if ($historial === false) {
     die('Error al consultar historial: ' . $conn->error);
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -67,6 +71,7 @@ if ($historial === false) {
               <th class="p-2 border">Fecha</th>
               <th class="p-2 border">Usuario</th>
               <th class="p-2 border">Acción</th>
+              <th class="p-2 border">Tabla</th>
               <th class="p-2 border">Detalle</th>
             </tr>
           </thead>
@@ -77,12 +82,13 @@ if ($historial === false) {
                   <td class="p-2"><?= htmlspecialchars($row['fecha']) ?></td>
                   <td class="p-2"><?= htmlspecialchars($row['usuario']) ?></td>
                   <td class="p-2"><?= htmlspecialchars(ucfirst($row['accion'])) ?></td>
+                  <td class="p-2"><?= htmlspecialchars($row['nombre_tabla']) ?></td>
                   <td class="p-2"><?= htmlspecialchars($row['detalle']) ?></td>
                 </tr>
               <?php endwhile; ?>
             <?php else: ?>
               <tr>
-                <td colspan="4" class="p-4 text-center text-gray-500">No hay registros de cambios.</td>
+                <td colspan="5" class="p-4 text-center text-gray-500">No hay registros de cambios.</td>
               </tr>
             <?php endif; ?>
           </tbody>
