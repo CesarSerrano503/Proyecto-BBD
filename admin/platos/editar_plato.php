@@ -29,7 +29,7 @@ if (!$id) {
 // ───────── FETCH CURRENT DATA ─────────
 $stmt = $conn->prepare(
     'SELECT nombre, descripcion, precio, limite_disponible, activo, imagen
-       FROM platos
+      FROM platos
       WHERE id_plato = ?'
 );
 $stmt->bind_param('i', $id);
@@ -87,9 +87,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Build SQL, updating imagen only if a new one was uploaded
         if ($nuevoBlob !== null) {
             $sql = "UPDATE platos
-                       SET nombre = ?, descripcion = ?, precio = ?, 
-                           limite_disponible = ?, activo = ?, imagen = ?
-                     WHERE id_plato = ?";
+                      SET nombre = ?, descripcion = ?, precio = ?,
+                          limite_disponible = ?, activo = ?, imagen = ?
+                    WHERE id_plato = ?";
             $stmt = $conn->prepare($sql);
             $stmt->bind_param(
                 'ssdii bi',
@@ -105,9 +105,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->send_long_data(5, $nuevoBlob);
         } else {
             $sql = "UPDATE platos
-                       SET nombre = ?, descripcion = ?, precio = ?, 
-                           limite_disponible = ?, activo = ?
-                     WHERE id_plato = ?";
+                      SET nombre = ?, descripcion = ?, precio = ?,
+                          limite_disponible = ?, activo = ?
+                    WHERE id_plato = ?";
             $stmt = $conn->prepare($sql);
             $stmt->bind_param(
                 'ssdiii',
