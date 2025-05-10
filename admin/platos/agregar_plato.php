@@ -1,4 +1,3 @@
-
 <?php
 // ───────── SESSION & CACHE ─────────
 session_start();
@@ -7,9 +6,9 @@ header("Pragma: no-cache");
 header("Expires: 0");
 
 // ───────── ADMIN CHECK ─────────
-if (!isset($_SESSION['Usuario']['Rol']) || $_SESSION['Usuario']['Rol'] !== 'admin') {
+if (empty($_SESSION['Usuario']['Rol']) || $_SESSION['Usuario']['Rol'] !== 'admin') {
     header('Location: ../login/login.php?cerrado=1');
-    exit();
+    exit;
 }
 
 // ───────── DB CONNECTION ─────────
@@ -18,35 +17,36 @@ if ($conn->connect_error) {
     die('Error de conexión: ' . $conn->connect_error);
 }
 
-$errors = [];
-// valores por defecto
-$nombre = '';
+// Inyectar en MySQL el nombre del admin para los triggers
+$adminName = $conn->real_escape_string($_SESSION['Usuario']['Nombre']);
+$conn->query("SET @usuario = '{$adminName}';");
+
+$errors      = [];
+$nombre      = '';
 $descripcion = '';
-$precio = '';
-$limite = '';
-// siempre inactivo al crear
-$activo = 0;
+$precio      = '';
+$limite      = '';
+$activo      = 0;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // sanitizar entradas
+    // 1) Sanitizar/validar
     $nombre      = trim($_POST['nombre'] ?? '');
     $descripcion = trim($_POST['descripcion'] ?? '');
     $precio      = filter_input(INPUT_POST, 'precio', FILTER_VALIDATE_FLOAT);
     $limite      = filter_input(INPUT_POST, 'limite_disponible', FILTER_VALIDATE_INT);
 
-    // validaciones
     if ($nombre === '')      $errors[] = 'El nombre del plato es obligatorio.';
     if ($descripcion === '') $errors[] = 'La descripción es obligatoria.';
     if ($precio === false || $precio <= 0) $errors[] = 'El precio debe ser un número mayor a 0.';
     if ($limite === false || $limite < 0)  $errors[] = 'El límite debe ser un entero ≥ 0.';
 
-    // validación de imagen
+    // 2) Validar imagen
     if (empty($_FILES['imagen']['tmp_name'])) {
         $errors[] = 'La imagen del plato es obligatoria.';
     } else {
-        $file = $_FILES['imagen'];
+        $file    = $_FILES['imagen'];
         $allowed = ['image/jpeg','image/png','image/webp'];
-        $type = mime_content_type($file['tmp_name']);
+        $type    = mime_content_type($file['tmp_name']);
         if (!in_array($type, $allowed)) {
             $errors[] = 'Solo JPG, PNG o WEBP (≤2MB).';
         } elseif ($file['size'] > 2 * 1024 * 1024) {
@@ -56,40 +56,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    // 3) Insertar si no hay errores
     if (empty($errors)) {
-        // set usuario para trigger
-        $usuario = $_SESSION['Usuario']['Nombre'];
-        $conn->query("SET @usuario = '" . $conn->real_escape_string($usuario) . "'");
-
-        // llamar sp para crear
-        $sql = "CALL sp_crear_plato(?, ?, ?, ?, ?, ?, ?)";
+        $sql = "INSERT INTO platos 
+                  (nombre, descripcion, precio, limite_disponible, activo, imagen) 
+                VALUES (?, ?, ?, ?, ?, ?)";
         $stmt = $conn->prepare($sql);
-        $null = null;
-        // bind: nombre, descripcion, precio, limite, activo, imagen(blob), usuario
-        $stmt->bind_param(
-            'ssdiibs',
-            $nombre,
-            $descripcion,
-            $precio,
-            $limite,
-            $activo,
-            $null,
-            $usuario
-        );
-        // enviar blob en posición 5
-        $stmt->send_long_data(5, $blob);
-
-        if ($stmt->execute()) {
-            $stmt->close();
-            header('Location: ../dashboard.php?seccion=platos');
-            exit();
+        if (!$stmt) {
+            $errors[] = 'Error en la preparación: ' . htmlspecialchars($conn->error);
         } else {
-            $errors[] = 'Error al crear plato: ' . htmlspecialchars($stmt->error);
+            // Prepara variable para blob
+            $blobParam = null;
+            // Tipos: s=string, s=string, d=double, i=int, i=int, b=blob
+            $stmt->bind_param(
+                'ssdiib',
+                $nombre,
+                $descripcion,
+                $precio,
+                $limite,
+                $activo,
+                $blobParam
+            );
+            // Enviar datos largos (blob) en posición 5 (0-based)
+            $stmt->send_long_data(5, $blob);
+
+            if ($stmt->execute()) {
+                $stmt->close();
+                header('Location: ../dashboard.php?seccion=platos');
+                exit;
+            } else {
+                $errors[] = 'Error al crear plato: ' . htmlspecialchars($stmt->error);
+                $stmt->close();
+            }
         }
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -142,4 +144,3 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   </div>
 </body>
 </html>
-

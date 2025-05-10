@@ -6,9 +6,9 @@ header("Pragma: no-cache");
 header("Expires: 0");
 
 // ───────── ADMIN CHECK ─────────
-if (!isset($_SESSION['Usuario']['Rol']) || $_SESSION['Usuario']['Rol'] !== 'admin') {
+if (empty($_SESSION['Usuario']['Rol']) || $_SESSION['Usuario']['Rol'] !== 'admin') {
     header('Location: ../login/login.php?cerrado=1');
-    exit();
+    exit;
 }
 
 // ───────── DB CONNECTION ─────────
@@ -16,6 +16,9 @@ $conn = new mysqli('localhost', 'root', '', 'reservas_db');
 if ($conn->connect_error) {
     die('Error de conexión: ' . $conn->connect_error);
 }
+// Inyectar en MySQL el nombre del admin para que el trigger lo use
+$adminName = $conn->real_escape_string($_SESSION['Usuario']['Nombre']);
+$conn->query("SET @usuario = '{$adminName}';");
 
 // ───────── VALIDATE PLATO ID ─────────
 $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
@@ -26,8 +29,8 @@ if (!$id) {
 // ───────── FETCH CURRENT DATA ─────────
 $stmt = $conn->prepare(
     'SELECT nombre, descripcion, precio, limite_disponible, activo, imagen
-     FROM platos
-     WHERE id_plato = ?'
+       FROM platos
+      WHERE id_plato = ?'
 );
 $stmt->bind_param('i', $id);
 $stmt->execute();
@@ -62,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($precio === false || $precio <= 0) $errors[] = 'El precio debe ser un número mayor a 0.';
     if ($limite === false || $limite < 0)  $errors[] = 'El límite debe ser un entero ≥ 0.';
 
-    // 4) Process optional image upload
+    // 4) Optional image upload
     $nuevoBlob = null;
     if (!empty($_FILES['imagen']['tmp_name'])) {
         $archivo    = $_FILES['imagen'];
@@ -79,41 +82,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    // 5) If no errors, perform UPDATE
     if (empty($errors)) {
-        // 5) Set @usuario for triggers
-        $usuario = $_SESSION['Usuario']['Nombre'];
-        $conn->query("SET @usuario = '" . $conn->real_escape_string($usuario) . "'");
-
-        // 6) Call stored procedure with 8 params
-        $sql    = 'CALL sp_editar_plato(?, ?, ?, ?, ?, ?, ?, ?)';
-        $stmtSP = $conn->prepare($sql);
-        $null   = null;
-        $stmtSP->bind_param(
-            'issdiibs',
-            $id,
-            $nombre,
-            $descripcion,
-            $precio,
-            $limite,
-            $activo,
-            $null,
-            $usuario
-        );
-        // send blob as 7th param (index 6)
+        // Build SQL, updating imagen only if a new one was uploaded
         if ($nuevoBlob !== null) {
-            $stmtSP->send_long_data(6, $nuevoBlob);
-        }
-        if ($stmtSP->execute()) {
-            $stmtSP->close();
-            header('Location: ../dashboard.php?seccion=platos');
-            exit();
+            $sql = "UPDATE platos
+                       SET nombre = ?, descripcion = ?, precio = ?, 
+                           limite_disponible = ?, activo = ?, imagen = ?
+                     WHERE id_plato = ?";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param(
+                'ssdii bi',
+                $nombre,
+                $descripcion,
+                $precio,
+                $limite,
+                $activo,
+                $nullBlob = null,
+                $id
+            );
+            // send blob for param index 5 (0-based)
+            $stmt->send_long_data(5, $nuevoBlob);
         } else {
-            $errors[] = 'Error al actualizar plato: ' . htmlspecialchars($stmtSP->error);
+            $sql = "UPDATE platos
+                       SET nombre = ?, descripcion = ?, precio = ?, 
+                           limite_disponible = ?, activo = ?
+                     WHERE id_plato = ?";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param(
+                'ssdiii',
+                $nombre,
+                $descripcion,
+                $precio,
+                $limite,
+                $activo,
+                $id
+            );
+        }
+
+        if ($stmt->execute()) {
+            $stmt->close();
+            $conn->close();
+            header('Location: ../dashboard.php?seccion=platos');
+            exit;
+        } else {
+            $errors[] = 'Error al actualizar plato: ' . htmlspecialchars($stmt->error);
+            $stmt->close();
         }
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
