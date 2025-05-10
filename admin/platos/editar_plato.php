@@ -84,15 +84,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // 5) If no errors, perform UPDATE
     if (empty($errors)) {
         if ($nuevoBlob !== null) {
-            // actualizar todos los campos incluyendo imagen
+            // Actualizar incluyendo imagen
             $sql = "UPDATE platos
                       SET nombre = ?, descripcion = ?, precio = ?,
                           limite_disponible = ?, activo = ?, imagen = ?
                     WHERE id_plato = ?";
             $stmt = $conn->prepare($sql);
-            // prepare a null var for the blob placeholder
             $nullBlob = null;
-            // types: s,s,d,i,i,b,i
+            // types: s (nombre), s (descripcion), d (precio), i (limite), i (activo), b (blob), i (id)
             $stmt->bind_param(
                 'ssdiibi',
                 $nombre,
@@ -103,17 +102,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $nullBlob,
                 $id
             );
-            // send the actual blob data to parameter 5 (0-based)
             $stmt->send_long_data(5, $nuevoBlob);
         } else {
-            // actualizar todo excepto imagen
+            // Actualizar sin imagen
             $sql = "UPDATE platos
                       SET nombre = ?, descripcion = ?, precio = ?,
                           limite_disponible = ?, activo = ?
                     WHERE id_plato = ?";
             $stmt = $conn->prepare($sql);
+            // types: s, s, d, i, i, i
             $stmt->bind_param(
-                'ssdi i',
+                'ssdiii',
                 $nombre,
                 $descripcion,
                 $precio,
