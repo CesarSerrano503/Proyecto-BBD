@@ -34,8 +34,7 @@ $stmt = $conn->prepare(
 );
 $stmt->bind_param('i', $id);
 $stmt->execute();
-$result = $stmt->get_result();
-$plato  = $result->fetch_assoc();
+$plato = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
 if (!$plato) {
@@ -84,33 +83,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // 5) If no errors, perform UPDATE
     if (empty($errors)) {
-        // Build SQL, updating imagen only if a new one was uploaded
         if ($nuevoBlob !== null) {
+            // actualizar todos los campos incluyendo imagen
             $sql = "UPDATE platos
                       SET nombre = ?, descripcion = ?, precio = ?,
                           limite_disponible = ?, activo = ?, imagen = ?
                     WHERE id_plato = ?";
             $stmt = $conn->prepare($sql);
+            // prepare a null var for the blob placeholder
+            $nullBlob = null;
+            // types: s,s,d,i,i,b,i
             $stmt->bind_param(
-                'ssdii bi',
+                'ssdiibi',
                 $nombre,
                 $descripcion,
                 $precio,
                 $limite,
                 $activo,
-                $nullBlob = null,
+                $nullBlob,
                 $id
             );
-            // send blob for param index 5 (0-based)
+            // send the actual blob data to parameter 5 (0-based)
             $stmt->send_long_data(5, $nuevoBlob);
         } else {
+            // actualizar todo excepto imagen
             $sql = "UPDATE platos
                       SET nombre = ?, descripcion = ?, precio = ?,
                           limite_disponible = ?, activo = ?
                     WHERE id_plato = ?";
             $stmt = $conn->prepare($sql);
             $stmt->bind_param(
-                'ssdiii',
+                'ssdi i',
                 $nombre,
                 $descripcion,
                 $precio,
