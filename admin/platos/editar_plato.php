@@ -1,5 +1,5 @@
 <?php
-// ───────── SESSION & CACHE ─────────
+// ───────── SESIÓN Y CACHE ─────────
 session_start();
 header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
 header("Pragma: no-cache");
@@ -11,25 +11,26 @@ if (empty($_SESSION['Usuario']['Rol']) || $_SESSION['Usuario']['Rol'] !== 'admin
     exit;
 }
 
-// ───────── DB CONNECTION ─────────
+// ───────── CONEXIÓN A LA BBDD ─────────
 $conn = new mysqli('localhost', 'root', '', 'reservas_db');
 if ($conn->connect_error) {
     die('Error de conexión: ' . $conn->connect_error);
 }
-// Inyectar en MySQL el nombre del admin para que el trigger lo use
+
+// ───────── INYECTAR USUARIO PARA TRIGGERS ─────────
 $adminName = $conn->real_escape_string($_SESSION['Usuario']['Nombre']);
 $conn->query("SET @usuario = '{$adminName}';");
 
-// ───────── VALIDATE PLATO ID ─────────
+// ───────── VALIDAR ID DE PLATO ─────────
 $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
 if (!$id) {
     die('ID de plato inválido.');
 }
 
-// ───────── FETCH CURRENT DATA ─────────
+// ───────── OBTENER DATOS EXISTENTES ─────────
 $stmt = $conn->prepare(
     'SELECT nombre, descripcion, precio, limite_disponible, activo, imagen
-      FROM platos
+       FROM platos
       WHERE id_plato = ?'
 );
 $stmt->bind_param('i', $id);
@@ -41,7 +42,7 @@ if (!$plato) {
     die('Plato no encontrado.');
 }
 
-// ───────── INITIALIZE FORM VALUES ─────────
+// ───────── INICIALIZAR VALORES DEL FORMULARIO ─────────
 $errors      = [];
 $nombre      = $plato['nombre'];
 $descripcion = $plato['descripcion'];
@@ -50,21 +51,19 @@ $limite      = $plato['limite_disponible'];
 $activo      = (int)$plato['activo'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // 1) Sanitize inputs
+    // 1) Sanear entrada
     $nombre      = trim($_POST['nombre'] ?? '');
     $descripcion = trim($_POST['descripcion'] ?? '');
+    $precio      = filter_input(INPUT_POST, 'precio', FILTER_VALIDATE_FLOAT);
+    $limite      = filter_input(INPUT_POST, 'limite_disponible', FILTER_VALIDATE_INT);
+    $activo      = isset($_POST['activo']) ? 1 : 0;
 
-    // 2) Validate numeric fields
-    $precio = filter_input(INPUT_POST, 'precio', FILTER_VALIDATE_FLOAT);
-    $limite = filter_input(INPUT_POST, 'limite_disponible', FILTER_VALIDATE_INT);
-
-    // 3) Basic validations
     if ($nombre === '')      $errors[] = 'El nombre del plato es obligatorio.';
     if ($descripcion === '') $errors[] = 'La descripción es obligatoria.';
     if ($precio === false || $precio <= 0) $errors[] = 'El precio debe ser un número mayor a 0.';
     if ($limite === false || $limite < 0)  $errors[] = 'El límite debe ser un entero ≥ 0.';
 
-    // 4) Optional image upload
+    // 2) Procesar subida de imagen (opcional)
     $nuevoBlob = null;
     if (!empty($_FILES['imagen']['tmp_name'])) {
         $archivo    = $_FILES['imagen'];
@@ -81,55 +80,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // 5) If no errors, perform UPDATE
+    // 3) Si no hay errores, llamar al SP
     if (empty($errors)) {
+        $sql = 'CALL sp_editar_plato(?, ?, ?, ?, ?, ?, ?, ?)';
+        $stmtSP = $conn->prepare($sql);
+        $nullBlob = null;
+        $stmtSP->bind_param(
+            'issdiibs',
+            $id,           // p_id
+            $nombre,       // p_nombre
+            $descripcion,  // p_descripcion
+            $precio,       // p_precio
+            $limite,       // p_limite
+            $nullBlob,     // p_imagen placeholder
+            $activo,       // p_activo
+            $adminName     // p_usuario
+        );
         if ($nuevoBlob !== null) {
-            // Actualizar incluyendo imagen
-            $sql = "UPDATE platos
-                      SET nombre = ?, descripcion = ?, precio = ?,
-                          limite_disponible = ?, activo = ?, imagen = ?
-                    WHERE id_plato = ?";
-            $stmt = $conn->prepare($sql);
-            $nullBlob = null;
-            // types: s (nombre), s (descripcion), d (precio), i (limite), i (activo), b (blob), i (id)
-            $stmt->bind_param(
-                'ssdiibi',
-                $nombre,
-                $descripcion,
-                $precio,
-                $limite,
-                $activo,
-                $nullBlob,
-                $id
-            );
-            $stmt->send_long_data(5, $nuevoBlob);
-        } else {
-            // Actualizar sin imagen
-            $sql = "UPDATE platos
-                      SET nombre = ?, descripcion = ?, precio = ?,
-                          limite_disponible = ?, activo = ?
-                    WHERE id_plato = ?";
-            $stmt = $conn->prepare($sql);
-            // types: s, s, d, i, i, i
-            $stmt->bind_param(
-                'ssdiii',
-                $nombre,
-                $descripcion,
-                $precio,
-                $limite,
-                $activo,
-                $id
-            );
+            // posición 5: p_imagen
+            $stmtSP->send_long_data(5, $nuevoBlob);
         }
-
-        if ($stmt->execute()) {
-            $stmt->close();
-            $conn->close();
+        if ($stmtSP->execute()) {
+            $stmtSP->close();
             header('Location: ../dashboard.php?seccion=platos');
             exit;
         } else {
-            $errors[] = 'Error al actualizar plato: ' . htmlspecialchars($stmt->error);
-            $stmt->close();
+            $errors[] = 'Error al actualizar plato: ' . htmlspecialchars($stmtSP->error);
+            $stmtSP->close();
         }
     }
 }

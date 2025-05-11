@@ -1,5 +1,5 @@
 <?php
-// ───────── SESSION & CACHE ─────────
+// ───────── SESIÓN Y CACHE ─────────
 session_start();
 header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
 header("Pragma: no-cache");
@@ -11,13 +11,13 @@ if (empty($_SESSION['Usuario']['Rol']) || $_SESSION['Usuario']['Rol'] !== 'admin
     exit;
 }
 
-// ───────── DB CONNECTION ─────────
+// ───────── CONEXIÓN A LA BBDD ─────────
 $conn = new mysqli('localhost', 'root', '', 'reservas_db');
 if ($conn->connect_error) {
     die('Error de conexión: ' . $conn->connect_error);
 }
 
-// Inyectar en MySQL el nombre del admin para los triggers
+// ───────── INYECTAR USUARIO PARA TRIGGERS ─────────
 $adminName = $conn->real_escape_string($_SESSION['Usuario']['Nombre']);
 $conn->query("SET @usuario = '{$adminName}';");
 
@@ -58,27 +58,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // 3) Insertar si no hay errores
     if (empty($errors)) {
-        $sql = "INSERT INTO platos 
-                  (nombre, descripcion, precio, limite_disponible, activo, imagen) 
-                VALUES (?, ?, ?, ?, ?, ?)";
-        $stmt = $conn->prepare($sql);
+        // Llamada al SP sp_crear_plato
+        $stmt = $conn->prepare("CALL sp_crear_plato(?,?,?,?,?,?,?)");
         if (!$stmt) {
-            $errors[] = 'Error en la preparación: ' . htmlspecialchars($conn->error);
+            $errors[] = 'Error al preparar el SP: ' . htmlspecialchars($conn->error);
         } else {
-            // Prepara variable para blob
-            $blobParam = null;
-            // Tipos: s=string, s=string, d=double, i=int, i=int, b=blob
+            $nullBlob = null;
+            // Parámetros: nombre, descripcion, precio, limite, imagen, activo, usuario
             $stmt->bind_param(
-                'ssdiib',
+                'ssdiibs',
                 $nombre,
                 $descripcion,
                 $precio,
                 $limite,
+                $nullBlob,
                 $activo,
-                $blobParam
+                $adminName
             );
-            // Enviar datos largos (blob) en posición 5 (0-based)
-            $stmt->send_long_data(5, $blob);
+            // Enviar blob en posición 4 (0-based)
+            $stmt->send_long_data(4, $blob);
 
             if ($stmt->execute()) {
                 $stmt->close();
