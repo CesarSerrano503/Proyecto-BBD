@@ -16,9 +16,10 @@ $conn->query("SET @currentAdmin = '{$adminName}';");
 // Obtener id
 $id = $_GET['id'] ?? null;
 if ($id) {
-    $stmt = $conn->prepare("DELETE FROM complementos WHERE id_complemento = ?");
+    $stmt = $conn->prepare("CALL sp_eliminar_complemento(?)");
     $stmt->bind_param('i', $id);
     $stmt->execute();
+
 }
 
 // Volver al dashboard de complementos

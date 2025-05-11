@@ -20,12 +20,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $precio = $_POST['precio'];
     $activo = isset($_POST['activo']) ? 1 : 0;
 
-    $stmt = $conn->prepare(
-        "INSERT INTO complementos (nombre, tipo, precio, activo)
-         VALUES (?, ?, ?, ?)"
-    );
+      $stmt = $conn->prepare("CALL sp_crear_complemento(?,?,?,?)");
     $stmt->bind_param('ssdi', $nombre, $tipo, $precio, $activo);
     $stmt->execute();
+
 
     header('Location: ../dashboard.php?seccion=complementos');
     exit;
