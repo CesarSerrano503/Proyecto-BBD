@@ -27,10 +27,10 @@ if (!$platoId) {
 $stmt = $conn->prepare("
     SELECT id_plato, nombre, descripcion, precio, imagen, limite_disponible
       FROM platos
-     WHERE id_plato = ? 
+     WHERE id_plato = ?
        AND activo = 1
 ");
-$stmt->bind_param('i',$platoId);
+$stmt->bind_param('i', $platoId);
 $stmt->execute();
 $plato = $stmt->get_result()->fetch_assoc();
 $stmt->close();
@@ -39,11 +39,10 @@ if (!$plato) {
     die("<p class='text-center mt-10 text-red-500 font-bold'>❌ Plato no encontrado o inactivo.</p>");
 }
 
-// ───────── LÓGICA DE DISPONIBLES SEGÚN limite_disponible ─────────
+// ───────── USAR directly limite_disponible ─────────
 $limite      = (int)$plato['limite_disponible'];
-// Si el admin dejó 0 → bloqueado, sin límite si > 0
-$bloqueado   = ($limite === 0);
 $disponibles = $limite > 0 ? $limite : 'Sin límite';
+$bloqueado   = ($limite === 0);
 
 // ───────── OBTENER COMPLEMENTOS ACTIVOS ─────────
 $res    = $conn->query("
@@ -86,11 +85,10 @@ $precioBase = floatval($plato['precio']);
           Sin imagen
         </div>
       <?php endif; ?>
-
       <h2 class="text-2xl font-semibold mt-4"><?= htmlspecialchars($plato['nombre']) ?></h2>
       <p class="text-gray-700 mt-2">Precio base: $<?= number_format($precioBase,2) ?> USD</p>
       <p class="text-gray-500 mt-1 text-sm">
-        Disponibles hoy: <?= $disponibles ?>
+        Disponibles hoy: <?= htmlspecialchars($disponibles) ?>
       </p>
     </div>
 
@@ -106,7 +104,7 @@ $precioBase = floatval($plato['precio']);
           <input type="hidden" name="precio_base"  id="precio_base" value="<?= $precioBase ?>"/>
 
           <!-- Extras (select múltiple) -->
-          <?php foreach ($extras as $ex): ?>
+          <?php if ($extras): foreach ($extras as $ex): ?>
             <div>
               <label class="block font-medium">
                 <?= htmlspecialchars($ex['nombre']) ?> ($<?= number_format($ex['precio'],2) ?> c/u)
@@ -119,10 +117,10 @@ $precioBase = floatval($plato['precio']);
                 <?php endfor; ?>
               </select>
             </div>
-          <?php endforeach; ?>
+          <?php endforeach; endif; ?>
 
           <!-- Complementos (radio por tipo) -->
-          <?php foreach ($otros as $tipo=>$gr): ?>
+          <?php foreach ($otros as $tipo => $gr): ?>
             <p class="font-medium capitalize mt-4"><?= htmlspecialchars($tipo) ?>:</p>
             <?php foreach ($gr as $c): ?>
               <label class="block ml-4">
@@ -163,7 +161,7 @@ $precioBase = floatval($plato['precio']);
     function actualizarTotal() {
       let sum = base;
       selects.forEach(sel => {
-        const qty   = parseInt(sel.value) || 0,
+        const qty   = parseInt(sel.value)   || 0,
               price = parseFloat(sel.dataset.price) || 0;
         sum += qty * price;
       });
@@ -171,12 +169,12 @@ $precioBase = floatval($plato['precio']);
         if (r.checked) sum += parseFloat(r.dataset.price) || 0;
       });
       const t = sum.toFixed(2);
-      totalSpan.textContent = '$'+t;
+      totalSpan.textContent = '$' + t;
       totalInput.value     = t;
     }
 
-    selects.forEach(s=>s.addEventListener('change', actualizarTotal));
-    radios.forEach(r=>r.addEventListener('change', actualizarTotal));
+    selects.forEach(s => s.addEventListener('change', actualizarTotal));
+    radios .forEach(r => r.addEventListener('change', actualizarTotal));
   </script>
 </body>
 </html>
