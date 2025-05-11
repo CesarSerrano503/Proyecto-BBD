@@ -29,6 +29,10 @@ if ($conn->connect_error) {
     die("Error de conexión: ".$conn->connect_error);
 }
 
+// ───────── INYECTAR USUARIO PARA TRIGGERS ─────────
+$usuario = $conn->real_escape_string($_SESSION['Usuario']['Carnet']);
+$conn->query("SET @usuario = '{$usuario}';");
+
 // ───────── LEER Y VALIDAR POST ─────────
 $id_plato    = filter_input(INPUT_POST,'id_plato',    FILTER_VALIDATE_INT);
 $precio_base = filter_input(INPUT_POST,'precio_base', FILTER_VALIDATE_FLOAT);
