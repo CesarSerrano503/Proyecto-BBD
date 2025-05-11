@@ -17,9 +17,9 @@ if ($conn->connect_error) {
     die('Error de conexión: ' . $conn->connect_error);
 }
 
-// ───────── OBTENER PLATOS ACTIVOS ─────────
+// ───────── OBTENER PLATOS ACTIVOS Y SU LÍMITE ACTUAL ─────────
 $stmt = $conn->prepare(
-    'SELECT id_plato, nombre, descripcion, precio, imagen
+    'SELECT id_plato, nombre, descripcion, precio, imagen, limite_disponible
        FROM platos
       WHERE activo = 1
       ORDER BY nombre'
@@ -39,7 +39,7 @@ $stmt = $conn->prepare(
 );
 $stmt->bind_param('s',$carnet);
 $stmt->execute();
-$summary = $stmt->get_result()->fetch_assoc();
+$summary      = $stmt->get_result()->fetch_assoc();
 $item_count   = $summary['item_count'];
 $total_to_pay = $summary['total'];
 $stmt->close();
@@ -81,6 +81,7 @@ $stmt->close();
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 place-items-center">
       <?php while($plato = $platos->fetch_assoc()): ?>
         <div class="bg-white p-4 shadow-md rounded-lg w-72 text-center">
+          <!-- Imagen -->
           <?php if(!empty($plato['imagen'])): ?>
             <img src="data:image/jpeg;base64,<?= base64_encode($plato['imagen']) ?>"
                  alt="<?= htmlspecialchars($plato['nombre']) ?>"
@@ -88,8 +89,14 @@ $stmt->close();
           <?php else: ?>
             <div class="w-64 h-40 bg-gray-200 rounded mb-2"></div>
           <?php endif; ?>
+          <!-- Nombre y precio -->
           <p class="mt-2 font-semibold"><?= htmlspecialchars($plato['nombre']) ?></p>
           <p class="mt-1 text-gray-600">$<?= number_format($plato['precio'],2) ?></p>
+          <!-- Disponibles según limite_disponible -->
+          <p class="mt-1 text-sm text-gray-500">
+            Disponibles: <?= intval($plato['limite_disponible']) === 0 ? 'Sin límite' : htmlspecialchars($plato['limite_disponible']) ?>
+          </p>
+          <!-- Acciones -->
           <div class="flex justify-center mt-3 space-x-2">
             <a href="pedido.php?id=<?= $plato['id_plato'] ?>">
               <button class="bg-green-400 text-white px-4 py-1 rounded hover:bg-green-500">

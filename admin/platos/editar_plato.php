@@ -51,40 +51,41 @@ $limite      = $plato['limite_disponible'];
 $activo      = (int)$plato['activo'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // 1) Sanear entrada
+    // 1) Sanear y validar
     $nombre      = trim($_POST['nombre'] ?? '');
     $descripcion = trim($_POST['descripcion'] ?? '');
     $precio      = filter_input(INPUT_POST, 'precio', FILTER_VALIDATE_FLOAT);
     $limite      = filter_input(INPUT_POST, 'limite_disponible', FILTER_VALIDATE_INT);
     $activo      = isset($_POST['activo']) ? 1 : 0;
 
-    if ($nombre === '')      $errors[] = 'El nombre del plato es obligatorio.';
+    if ($nombre === '')      $errors[] = 'El nombre es obligatorio.';
     if ($descripcion === '') $errors[] = 'La descripción es obligatoria.';
-    if ($precio === false || $precio <= 0) $errors[] = 'El precio debe ser un número mayor a 0.';
+    if ($precio === false || $precio <= 0) $errors[] = 'El precio debe ser mayor a 0.';
     if ($limite === false || $limite < 0)  $errors[] = 'El límite debe ser un entero ≥ 0.';
 
-    // 2) Procesar subida de imagen (opcional)
+    // 2) Procesar imagen (opcional)
     $nuevoBlob = null;
     if (!empty($_FILES['imagen']['tmp_name'])) {
-        $archivo    = $_FILES['imagen'];
-        $permitidos = ['image/jpeg','image/png','image/webp'];
-        $type       = mime_content_type($archivo['tmp_name']);
-        if ($archivo['error'] !== UPLOAD_ERR_OK) {
+        $file    = $_FILES['imagen'];
+        $allowed = ['image/jpeg','image/png','image/webp'];
+        $type    = mime_content_type($file['tmp_name']);
+        if ($file['error'] !== UPLOAD_ERR_OK) {
             $errors[] = 'Error al subir la imagen.';
-        } elseif (!in_array($type, $permitidos)) {
+        } elseif (!in_array($type, $allowed)) {
             $errors[] = 'Solo JPG, PNG o WEBP (≤2MB).';
-        } elseif ($archivo['size'] > 2 * 1024 * 1024) {
+        } elseif ($file['size'] > 2 * 1024 * 1024) {
             $errors[] = 'La imagen no debe superar 2MB.';
         } else {
-            $nuevoBlob = file_get_contents($archivo['tmp_name']);
+            $nuevoBlob = file_get_contents($file['tmp_name']);
         }
     }
 
-    // 3) Si no hay errores, llamar al SP
+    // 3) Llamar al SP si no hay errores
     if (empty($errors)) {
         $sql = 'CALL sp_editar_plato(?, ?, ?, ?, ?, ?, ?, ?)';
         $stmtSP = $conn->prepare($sql);
         $nullBlob = null;
+        // bind_param types: i = id, s = nombre, s = descripcion, d = precio, i = limite, b = imagen, i = activo, s = usuario
         $stmtSP->bind_param(
             'issdiibs',
             $id,           // p_id
@@ -97,15 +98,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $adminName     // p_usuario
         );
         if ($nuevoBlob !== null) {
-            // posición 5: p_imagen
+            // posición 5 (0-based) es p_imagen
             $stmtSP->send_long_data(5, $nuevoBlob);
         }
+
         if ($stmtSP->execute()) {
             $stmtSP->close();
             header('Location: ../dashboard.php?seccion=platos');
             exit;
         } else {
-            $errors[] = 'Error al actualizar plato: ' . htmlspecialchars($stmtSP->error);
+            $errors[] = 'Error al actualizar: ' . htmlspecialchars($stmtSP->error);
             $stmtSP->close();
         }
     }
@@ -115,14 +117,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Editar Plato</title>
+  <title>✏️ Editar Plato</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 min-h-screen flex items-center justify-center">
   <div class="bg-white p-8 rounded shadow-md w-full max-w-lg">
     <h2 class="text-2xl font-bold mb-6 text-gray-800 text-center">✏️ Editar Plato</h2>
 
-    <?php if (!empty($errors)): ?>
+    <?php if ($errors): ?>
       <div class="bg-red-100 text-red-700 px-4 py-2 mb-4 rounded">
         <ul class="list-disc list-inside">
           <?php foreach ($errors as $e): ?>
@@ -150,6 +152,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <label class="block text-sm font-medium text-gray-700">Límite Disponible</label>
           <input type="number" min="0" name="limite_disponible" value="<?= htmlspecialchars($limite) ?>" required class="mt-1 block w-full border rounded p-2" />
         </div>
+      </div>
+      <div class="flex items-center">
+        <input type="checkbox" name="activo" id="activo" <?= $activo ? 'checked' : '' ?> class="mr-2">
+        <label for="activo" class="text-sm font-medium text-gray-700">Activo</label>
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-700">Imagen Actual</label>

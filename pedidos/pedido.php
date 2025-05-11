@@ -6,7 +6,7 @@ header("Pragma: no-cache");
 header("Expires: 0");
 
 // ───────── VERIFICAR SESIÓN COMO ALUMNO ─────────
-if (!isset($_SESSION['Usuario']['Carnet']) || $_SESSION['Usuario']['Rol']!=='alumno') {
+if (!isset($_SESSION['Usuario']['Carnet']) || $_SESSION['Usuario']['Rol'] !== 'alumno') {
     header('Location: ../login/login.php?cerrado=1');
     exit;
 }
@@ -24,11 +24,12 @@ if (!$platoId) {
 }
 
 // ───────── OBTENER DATOS DEL PLATO ─────────
-$stmt = $conn->prepare(
-    "SELECT id_plato,nombre,descripcion,precio,imagen,limite_disponible
-       FROM platos
-      WHERE id_plato=? AND activo=1"
-);
+$stmt = $conn->prepare("
+    SELECT id_plato, nombre, descripcion, precio, imagen, limite_disponible
+      FROM platos
+     WHERE id_plato = ? 
+       AND activo = 1
+");
 $stmt->bind_param('i',$platoId);
 $stmt->execute();
 $plato = $stmt->get_result()->fetch_assoc();
@@ -38,32 +39,23 @@ if (!$plato) {
     die("<p class='text-center mt-10 text-red-500 font-bold'>❌ Plato no encontrado o inactivo.</p>");
 }
 
-// ───────── CALCULAR DISPONIBILIDAD HOY ─────────
-$stmt = $conn->prepare(
-    "SELECT COUNT(*) AS c 
-       FROM pedidos 
-      WHERE id_plato=? AND fecha_reserva=CURDATE()"
-);
-$stmt->bind_param('i',$platoId);
-$stmt->execute();
-$pedHoy = (int)$stmt->get_result()->fetch_assoc()['c'];
-$stmt->close();
-
-$limite = (int)$plato['limite_disponible'];
-$disponibles = $limite>0 ? max(0,$limite-$pedHoy) : 'Sin límite';
-$bloqueado    = ($limite>0 && $pedHoy>=$limite);
+// ───────── LÓGICA DE DISPONIBLES SEGÚN limite_disponible ─────────
+$limite      = (int)$plato['limite_disponible'];
+// Si el admin dejó 0 → bloqueado, sin límite si > 0
+$bloqueado   = ($limite === 0);
+$disponibles = $limite > 0 ? $limite : 'Sin límite';
 
 // ───────── OBTENER COMPLEMENTOS ACTIVOS ─────────
-$res = $conn->query(
-    "SELECT id_complemento,nombre,tipo,precio
-       FROM complementos
-      WHERE activo=1
-      ORDER BY tipo, nombre"
-);
-$extras = [];  // select múltiple (extra)
-$otros = [];  // radio por tipo
-while($c=$res->fetch_assoc()){
-    if($c['tipo']==='extra'){
+$res    = $conn->query("
+    SELECT id_complemento, nombre, tipo, precio
+      FROM complementos
+     WHERE activo = 1
+     ORDER BY tipo, nombre
+");
+$extras = [];
+$otros  = [];
+while ($c = $res->fetch_assoc()) {
+    if ($c['tipo'] === 'extra') {
         $extras[] = $c;
     } else {
         $otros[$c['tipo']][] = $c;
@@ -73,7 +65,6 @@ while($c=$res->fetch_assoc()){
 // ───────── VARIABLES PARA JS ─────────
 $precioBase = floatval($plato['precio']);
 ?>
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -82,60 +73,58 @@ $precioBase = floatval($plato['precio']);
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 p-6 min-h-screen">
-
   <div class="max-w-4xl mx-auto bg-white shadow-md rounded-xl p-6 flex flex-col md:flex-row gap-6">
 
     <!-- INFORMACIÓN DEL PLATO -->
     <div class="md:w-1/2">
-      <?php if(!empty($plato['imagen'])):?>
+      <?php if (!empty($plato['imagen'])): ?>
         <img src="data:image/jpeg;base64,<?= base64_encode($plato['imagen']) ?>"
              alt="<?= htmlspecialchars($plato['nombre']) ?>"
              class="w-full h-48 object-cover rounded-lg"/>
-      <?php else:?>
+      <?php else: ?>
         <div class="w-full h-48 bg-gray-200 rounded-lg flex items-center justify-center text-gray-500">
           Sin imagen
         </div>
-      <?php endif;?>
+      <?php endif; ?>
+
       <h2 class="text-2xl font-semibold mt-4"><?= htmlspecialchars($plato['nombre']) ?></h2>
-      <p class="text-gray-700 mt-2">Precio base: $<?= number_format($precioBase,2) ?></p>
+      <p class="text-gray-700 mt-2">Precio base: $<?= number_format($precioBase,2) ?> USD</p>
       <p class="text-gray-500 mt-1 text-sm">
-        Disponibles hoy: <?= htmlspecialchars($disponibles) ?>
+        Disponibles hoy: <?= $disponibles ?>
       </p>
     </div>
 
     <!-- FORMULARIO DE PEDIDO -->
     <div class="md:w-1/2">
-      <?php if($bloqueado): ?>
+      <?php if ($bloqueado): ?>
         <p class="text-red-500 font-bold text-center">
-          ❌ Límite de pedidos alcanzado para este plato hoy.
+          ❌ No hay disponibilidad para este plato hoy.
         </p>
       <?php else: ?>
         <form action="guardar_pedido.php" method="POST" class="space-y-4">
-          <input type="hidden" name="id_plato" value="<?= $platoId ?>"/>
-          <input type="hidden" name="precio_base" id="precio_base" value="<?= $precioBase ?>"/>
+          <input type="hidden" name="id_plato"    value="<?= $platoId ?>"/>
+          <input type="hidden" name="precio_base"  id="precio_base" value="<?= $precioBase ?>"/>
 
           <!-- Extras (select múltiple) -->
-          <?php if($extras): ?>
-            <?php foreach($extras as $ex): ?>
-              <div>
-                <label class="block font-medium">
-                  <?= htmlspecialchars($ex['nombre']) ?> ($<?= number_format($ex['precio'],2) ?> c/u)
-                </label>
-                <select name="extra_<?= $ex['id_complemento'] ?>"
-                        data-price="<?= $ex['precio'] ?>"
-                        class="cantidad border rounded p-2 w-24">
-                  <?php for($i=0;$i<=5;$i++): ?>
-                    <option value="<?= $i ?>"><?= $i ?></option>
-                  <?php endfor; ?>
-                </select>
-              </div>
-            <?php endforeach; ?>
-          <?php endif; ?>
+          <?php foreach ($extras as $ex): ?>
+            <div>
+              <label class="block font-medium">
+                <?= htmlspecialchars($ex['nombre']) ?> ($<?= number_format($ex['precio'],2) ?> c/u)
+              </label>
+              <select name="extra_<?= $ex['id_complemento'] ?>"
+                      data-price="<?= $ex['precio'] ?>"
+                      class="cantidad border rounded p-2 w-24">
+                <?php for ($i=0; $i<=5; $i++): ?>
+                  <option value="<?= $i ?>"><?= $i ?></option>
+                <?php endfor; ?>
+              </select>
+            </div>
+          <?php endforeach; ?>
 
           <!-- Complementos (radio por tipo) -->
-          <?php foreach($otros as $tipo=>$gr): ?>
+          <?php foreach ($otros as $tipo=>$gr): ?>
             <p class="font-medium capitalize mt-4"><?= htmlspecialchars($tipo) ?>:</p>
-            <?php foreach($gr as $c): ?>
+            <?php foreach ($gr as $c): ?>
               <label class="block ml-4">
                 <input type="radio"
                        name="comp_<?= htmlspecialchars($tipo) ?>"
@@ -165,28 +154,29 @@ $precioBase = floatval($plato['precio']);
 
   <!-- CÁLCULO DE TOTAL EN JS -->
   <script>
-    const base = parseFloat(document.getElementById('precio_base').value);
-    const totalSpan = document.getElementById('total');
-    const totalHidden = document.getElementById('total-hidden');
-    const selects = document.querySelectorAll('.cantidad');
-    const radios  = document.querySelectorAll('.complemento');
+    const base       = parseFloat(document.getElementById('precio_base').value),
+          totalSpan  = document.getElementById('total'),
+          totalInput = document.getElementById('total-hidden'),
+          selects    = document.querySelectorAll('.cantidad'),
+          radios     = document.querySelectorAll('.complemento');
 
-    function actualizarTotal(){
+    function actualizarTotal() {
       let sum = base;
-      selects.forEach(s=>{
-        const qty = parseInt(s.value)||0;
-        sum += qty * parseFloat(s.dataset.price||0);
+      selects.forEach(sel => {
+        const qty   = parseInt(sel.value) || 0,
+              price = parseFloat(sel.dataset.price) || 0;
+        sum += qty * price;
       });
-      radios.forEach(r=>{
-        if(r.checked) sum += parseFloat(r.dataset.price||0);
+      radios.forEach(r => {
+        if (r.checked) sum += parseFloat(r.dataset.price) || 0;
       });
       const t = sum.toFixed(2);
       totalSpan.textContent = '$'+t;
-      totalHidden.value = t;
+      totalInput.value     = t;
     }
 
-    selects.forEach(s=>s.addEventListener('change',actualizarTotal));
-    radios .forEach(r=>r.addEventListener('change',actualizarTotal));
+    selects.forEach(s=>s.addEventListener('change', actualizarTotal));
+    radios.forEach(r=>r.addEventListener('change', actualizarTotal));
   </script>
 </body>
 </html>

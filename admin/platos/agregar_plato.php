@@ -26,7 +26,7 @@ $nombre      = '';
 $descripcion = '';
 $precio      = '';
 $limite      = '';
-$activo      = 0;
+$activo      = 0; // siempre activo por defecto
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // 1) Sanitizar/validar
@@ -56,15 +56,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // 3) Insertar si no hay errores
+    // 3) Llamada al SP si no hay errores
     if (empty($errors)) {
-        // Llamada al SP sp_crear_plato
+        // Preparar el CALL al SP
         $stmt = $conn->prepare("CALL sp_crear_plato(?,?,?,?,?,?,?)");
         if (!$stmt) {
             $errors[] = 'Error al preparar el SP: ' . htmlspecialchars($conn->error);
         } else {
             $nullBlob = null;
-            // Parámetros: nombre, descripcion, precio, limite, imagen, activo, usuario
+            // bind_param tipos: 
+            //   s => nombre
+            //   s => descripcion
+            //   d => precio
+            //   i => limite
+            //   b => imagen (blob)
+            //   i => activo
+            //   s => usuario (para trigger)
             $stmt->bind_param(
                 'ssdiibs',
                 $nombre,
@@ -75,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $activo,
                 $adminName
             );
-            // Enviar blob en posición 4 (0-based)
+            // enviar el blob en la posición 4 (0-based index)
             $stmt->send_long_data(4, $blob);
 
             if ($stmt->execute()) {
@@ -114,29 +121,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <form method="POST" enctype="multipart/form-data" class="space-y-4">
       <div>
         <label class="block text-sm font-medium text-gray-700">Nombre del plato</label>
-        <input type="text" name="nombre" value="<?= htmlspecialchars($nombre) ?>" required class="mt-1 block w-full border rounded p-2" />
+        <input type="text" name="nombre" value="<?= htmlspecialchars($nombre) ?>"
+               required class="mt-1 block w-full border rounded p-2" />
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-700">Descripción</label>
-        <textarea name="descripcion" rows="3" required class="mt-1 block w-full border rounded p-2"><?= htmlspecialchars($descripcion) ?></textarea>
+        <textarea name="descripcion" rows="3" required
+                  class="mt-1 block w-full border rounded p-2"><?= htmlspecialchars($descripcion) ?></textarea>
       </div>
       <div class="grid grid-cols-2 gap-4">
         <div>
           <label class="block text-sm font-medium text-gray-700">Precio ($)</label>
-          <input type="number" step="0.01" min="0" name="precio" value="<?= htmlspecialchars($precio) ?>" required class="mt-1 block w-full border rounded p-2" />
+          <input type="number" step="0.01" min="0" name="precio"
+                 value="<?= htmlspecialchars($precio) ?>" required
+                 class="mt-1 block w-full border rounded p-2" />
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700">Límite disponible</label>
-          <input type="number" min="0" name="limite_disponible" value="<?= htmlspecialchars($limite) ?>" required class="mt-1 block w-full border rounded p-2" />
+          <input type="number" min="0" name="limite_disponible"
+                 value="<?= htmlspecialchars($limite) ?>" required
+                 class="mt-1 block w-full border rounded p-2" />
         </div>
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-700">Imagen del plato</label>
-        <input type="file" name="imagen" accept="image/jpeg,image/png,image/webp" required class="mt-1 block w-full border rounded p-2" />
+        <input type="file" name="imagen" accept="image/jpeg,image/png,image/webp" required
+               class="mt-1 block w-full border rounded p-2" />
       </div>
       <div class="flex justify-between mt-6">
         <a href="../dashboard.php?seccion=platos" class="text-gray-600 hover:underline">⬅ Cancelar</a>
-        <button type="submit" class="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">Guardar</button>
+        <button type="submit"
+                class="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">
+          Guardar
+        </button>
       </div>
     </form>
   </div>

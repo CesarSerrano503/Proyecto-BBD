@@ -143,7 +143,7 @@ $complementos = $conn->query(
             </div>
         </section>
 
-        <!-- Platos -->
+                            <!-- Platos -->
         <section class="<?= $seccion === 'platos' ? '' : 'hidden' ?> mt-8">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-2xl font-semibold">🍽 Platos</h2>
@@ -157,6 +157,7 @@ $complementos = $conn->query(
                             <th class="p-2">Nombre</th>
                             <th class="p-2">Descripción</th>
                             <th class="p-2">Precio</th>
+                            <th class="p-2">Disponibles</th>
                             <th class="p-2">Estado</th>
                             <th class="p-2">Acciones</th>
                         </tr>
@@ -167,7 +168,8 @@ $complementos = $conn->query(
                                 <tr class="border-b hover:bg-gray-50">
                                     <td class="p-2">
                                         <?php if ($pl['imagen']): ?>
-                                            <img src="data:image/jpeg;base64,<?= base64_encode($pl['imagen']) ?>" class="w-16 h-12 rounded">
+                                            <img src="data:image/jpeg;base64,<?= base64_encode($pl['imagen']) ?>"
+                                                class="w-16 h-12 rounded" alt="">
                                         <?php else: ?>
                                             <span class="italic text-gray-400">--</span>
                                         <?php endif; ?>
@@ -175,26 +177,43 @@ $complementos = $conn->query(
                                     <td class="p-2"><?= htmlspecialchars($pl['nombre']) ?></td>
                                     <td class="p-2"><?= htmlspecialchars($pl['descripcion']) ?></td>
                                     <td class="p-2">$<?= number_format($pl['precio'], 2) ?></td>
+                                    <td class="p-2"><?= intval($pl['limite_disponible']) ?></td>
                                     <td class="p-2"><?= $pl['activo'] ? 'Activo' : 'Inactivo' ?></td>
                                     <td class="p-2 space-x-2">
-                                        <a href="platos/editar_plato.php?id=<?= $pl['id_plato'] ?>" class="text-blue-600">Editar</a>
+                                        <a href="platos/editar_plato.php?id=<?= $pl['id_plato'] ?>"
+                                        class="text-blue-600">Editar</a>
                                         <a href="platos/deshabilitar_plato.php?id=<?= $pl['id_plato'] ?>&estado=<?= $pl['activo'] ? 0 : 1 ?>"
-                                           class="text-yellow-600">
+                                        class="text-yellow-600">
                                             <?= $pl['activo'] ? 'Deshabilitar' : 'Habilitar' ?>
                                         </a>
-                                        <a href="platos/eliminar_plato.php?id=<?= $pl['id_plato'] ?>" class="text-red-600" onclick="return confirm('¿Eliminar?')">Eliminar</a>
+                                        <a href="platos/eliminar_plato.php?id=<?= $pl['id_plato'] ?>"
+                                        class="text-red-600" onclick="return confirm('¿Eliminar?')">Eliminar</a>
+                                        <!-- Reiniciar límite individual -->
+                                        <a href="reiniciar_limites.php?id=<?= $pl['id_plato'] ?>"
+                                        class="text-green-600 hover:underline" title="Reiniciar límite">
+                                            🔄
+                                        </a>
                                     </td>
                                 </tr>
                             <?php endwhile; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="6" class="p-4 text-center text-gray-500">Sin registros.</td>
+                                <td colspan="7" class="p-4 text-center text-gray-500">Sin registros.</td>
                             </tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
             </div>
+            <!-- Botón para reiniciar TODOS los límites -->
+            <div class="mt-4 text-right">
+                <a href="reiniciar_limites.php?all=1"
+                class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600">
+                    🔄 Reiniciar todos los límites
+                </a>
+            </div>
         </section>
+
+
 
         <!-- Complementos -->
         <section class="<?= $seccion === 'complementos' ? '' : 'hidden' ?> mt-8">
