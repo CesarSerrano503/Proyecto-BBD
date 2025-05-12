@@ -38,7 +38,7 @@ $row = $result->fetch_assoc();
     <div class="flex justify-center items-center min-h-screen p-4">
         <div class="bg-white p-6 shadow-md rounded-lg max-w-lg text-center">
             <?php if (!empty($row['imagen'])): ?>
-                <img src="<?= htmlspecialchars($row['imagen']) ?>" alt="<?= htmlspecialchars($row['nombre']) ?>" class="w-full h-60 object-cover mx-auto rounded">
+                <img src="data:image/jpeg;base64,<?= base64_encode($row['imagen']) ?>" alt="<?= htmlspecialchars($row['nombre']) ?>" class="w-full h-60 object-cover mx-auto rounded">
             <?php else: ?>
                 <img src="../../imgs/placeholder.jpg" alt="Imagen del platillo" class="w-full h-60 object-cover mx-auto rounded">
             <?php endif; ?>

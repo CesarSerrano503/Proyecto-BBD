@@ -120,19 +120,32 @@ $precioBase = floatval($plato['precio']);
           <?php endforeach; endif; ?>
 
           <!-- Complementos (radio por tipo) -->
-          <?php foreach ($otros as $tipo => $gr): ?>
-            <p class="font-medium capitalize mt-4"><?= htmlspecialchars($tipo) ?>:</p>
-            <?php foreach ($gr as $c): ?>
-              <label class="block ml-4">
-                <input type="radio"
-                       name="comp_<?= htmlspecialchars($tipo) ?>"
-                       value="<?= $c['id_complemento'] ?>"
-                       data-price="<?= $c['precio'] ?>"
-                       class="complemento inline-block mr-2"/>
-                <?= htmlspecialchars($c['nombre']) ?> ($<?= number_format($c['precio'],2) ?>)
-              </label>
-            <?php endforeach; ?>
-          <?php endforeach; ?>
+<?php foreach ($otros as $tipo => $gr): ?>
+  <p class="font-medium capitalize mt-4"><?= htmlspecialchars($tipo) ?>:</p>
+
+  <!-- Opción 'Ninguno' -->
+  <label class="block ml-4">
+    <input type="radio"
+           name="comp_<?= htmlspecialchars($tipo) ?>"
+           value=""
+           data-price="0"
+           class="complemento inline-block mr-2"
+           checked/>
+    Ninguno
+  </label>
+
+  <?php foreach ($gr as $c): ?>
+    <label class="block ml-4">
+      <input type="radio"
+             name="comp_<?= htmlspecialchars($tipo) ?>"
+             value="<?= $c['id_complemento'] ?>"
+             data-price="<?= $c['precio'] ?>"
+             class="complemento inline-block mr-2"/>
+      <?= htmlspecialchars($c['nombre']) ?> ($<?= number_format($c['precio'],2) ?>)
+    </label>
+  <?php endforeach; ?>
+<?php endforeach; ?>
+
 
           <!-- Total y enviar -->
           <div class="mt-6">
