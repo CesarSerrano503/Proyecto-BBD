@@ -26,25 +26,32 @@ $desde = $_GET['desde'] ?? date('Y-m-d', strtotime('-7 days'));
 $hasta = $_GET['hasta'] ?? date('Y-m-d');
 
 // Obtener datos de pedidos
-$pedidos = [];
 if ($seccion === 'pedidos') {
-    $sql = "SELECT 
-                p.fecha_reserva AS fecha, 
-                a.nombre         AS alumno, 
-                p.carnet_alumno  AS carnet, 
-                p.descripcion_pedido AS descripcion, 
-                COALESCE(SUM(pp.monto),0) AS monto
-            FROM pedidos p
-            JOIN alumnos a ON p.carnet_alumno = a.carnet
-            LEFT JOIN pedido_plato pp ON pp.id_pedido = p.id_pedido
-            WHERE p.fecha_reserva BETWEEN ? AND ?
-            GROUP BY p.id_pedido
-            ORDER BY p.fecha_reserva DESC";
+    $sql = "
+      SELECT
+        p.id_pedido,
+        p.fecha_reserva   AS fecha,
+        a.nombre          AS alumno,
+        p.carnet_alumno   AS carnet,
+        p.descripcion_pedido AS descripcion,
+        COALESCE(SUM(pp.monto), 0) AS monto
+      FROM pedidos p
+      JOIN alumnos a
+        ON p.carnet_alumno = a.carnet
+      LEFT JOIN pedido_plato pp
+        ON pp.id_pedido = p.id_pedido
+      WHERE p.fecha_reserva BETWEEN ? AND ?
+      GROUP BY p.id_pedido, p.fecha_reserva, a.nombre, p.carnet_alumno, p.descripcion_pedido
+      ORDER BY p.fecha_reserva DESC, p.id_pedido DESC
+    ";
     $stmt = $conn->prepare($sql);
     $stmt->bind_param('ss', $desde, $hasta);
     $stmt->execute();
     $pedidos = $stmt->get_result();
+    $stmt->close();
 }
+
+
 
 // Obtener platos
 define('DEFAULT_ORDER', 'activo DESC, nombre');
@@ -101,17 +108,29 @@ $complementos = $conn->query(
             <h1 class="text-3xl font-bold mb-4">Panel de Administración</h1>
             <p class="text-gray-600">Bienvenido/a, selecciona una opción del menú.</p>
         </section>
-
         <!-- Pedidos -->
         <section class="<?= $seccion === 'pedidos' ? '' : 'hidden' ?>">
             <h2 class="text-2xl font-semibold mb-4">📝 Pedidos</h2>
             <form method="get" class="flex items-center gap-4 mb-6">
                 <input type="hidden" name="seccion" value="pedidos">
-                <input type="date" name="desde" value="<?= $desde ?>" class="border px-2 py-1 rounded">
-                <input type="date" name="hasta" value="<?= $hasta ?>" class="border px-2 py-1 rounded">
-                <button type="submit" class="bg-blue-600 text-white px-4 py-1 rounded">Filtrar</button>
+                <input
+                    type="date"
+                    name="desde"
+                    value="<?= htmlspecialchars($desde) ?>"
+                    class="border px-2 py-1 rounded"
+                >
+                <input
+                    type="date"
+                    name="hasta"
+                    value="<?= htmlspecialchars($hasta) ?>"
+                    class="border px-2 py-1 rounded"
+                >
+                <button type="submit" class="bg-blue-600 text-white px-4 py-1 rounded">
+                    Filtrar
+                </button>
             </form>
-            <div class="overflow-x-auto border rounded">
+
+            <div class="overflow-x-auto border rounded bg-white">
                 <table class="w-full text-left text-sm">
                     <thead class="bg-gray-100 uppercase text-gray-600">
                         <tr>
@@ -123,25 +142,31 @@ $complementos = $conn->query(
                         </tr>
                     </thead>
                     <tbody>
-                        <?php if ($pedidos && $pedidos->num_rows): ?>
+                        <?php if (!empty($pedidos) && $pedidos->num_rows > 0): ?>
                             <?php while ($row = $pedidos->fetch_assoc()): ?>
                                 <tr class="border-b hover:bg-gray-50">
                                     <td class="p-2"><?= htmlspecialchars($row['fecha']) ?></td>
                                     <td class="p-2"><?= htmlspecialchars($row['alumno']) ?></td>
                                     <td class="p-2"><?= htmlspecialchars($row['carnet']) ?></td>
                                     <td class="p-2"><?= htmlspecialchars($row['descripcion']) ?></td>
-                                    <td class="p-2 text-right">$<?= number_format($row['monto'], 2) ?></td>
+                                    <td class="p-2 text-right">
+                                        $<?= number_format((float)$row['monto'], 2) ?>
+                                    </td>
                                 </tr>
                             <?php endwhile; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="5" class="p-4 text-center text-gray-500">No hay registros.</td>
+                                <td colspan="5" class="p-4 text-center text-gray-500">
+                                    No hay registros.
+                                </td>
                             </tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
             </div>
         </section>
+
+
 
                             <!-- Platos -->
         <section class="<?= $seccion === 'platos' ? '' : 'hidden' ?> mt-8">
