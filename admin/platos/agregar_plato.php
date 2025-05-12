@@ -26,7 +26,8 @@ $nombre      = '';
 $descripcion = '';
 $precio      = '';
 $limite      = '';
-$activo      = 0; // siempre activo por defecto
+$activo      = 1; // siempre activo por defecto
+$blob        = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // 1) Sanitizar/validar
@@ -58,13 +59,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // 3) Llamada al SP si no hay errores
     if (empty($errors)) {
-        // Preparar el CALL al SP
         $stmt = $conn->prepare("CALL sp_crear_plato(?,?,?,?,?,?,?)");
         if (!$stmt) {
             $errors[] = 'Error al preparar el SP: ' . htmlspecialchars($conn->error);
         } else {
-            $nullBlob = null;
-            // bind_param tipos: 
+            // bind_param tipos:
             //   s => nombre
             //   s => descripcion
             //   d => precio
@@ -72,8 +71,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             //   b => imagen (blob)
             //   i => activo
             //   s => usuario (para trigger)
+            // Nota: tipo string es 'ssdibis' (b en posición 5)
+            $nullBlob = ''; 
             $stmt->bind_param(
-                'ssdiibs',
+                'ssdibis',
                 $nombre,
                 $descripcion,
                 $precio,
@@ -82,7 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $activo,
                 $adminName
             );
-            // enviar el blob en la posición 4 (0-based index)
+            // enviamos el contenido al parámetro 5 (0-based index = 4)
             $stmt->send_long_data(4, $blob);
 
             if ($stmt->execute()) {
